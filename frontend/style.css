@@ -1,0 +1,1303 @@
+
+	* { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+	body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+	header { background: #333; color: white; padding: 0rem; text-align: center; z-index: 10; }
+	.content-area { 
+		display: flex; 
+		flex: 1; 
+		overflow: hidden; 
+		position: relative; 
+	}
+
+	.main-column {
+		flex: 0.8;
+		overflow: hidden;
+		background: #333;
+		min-width: 200px;
+		position: relative;
+	}
+
+	.main-column .section {
+		height: 100%; 
+		width: 100%; 
+		border: 0px solid red; 
+	}
+
+	.main-column #tab-gauges .indicator-container {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		grid-template-rows: repeat(2, 1fr);
+		gap: 10px;
+		padding: 10px;
+		width: 100%;
+		height: 100%;
+	}
+
+	.main-column #tab-gauges .indicator {
+		width: 100%;
+		aspect-ratio: 1/1;
+	}
+
+	#main-content {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+	}
+
+	.side-column {
+		flex: 0.2; 
+		display: flex; 
+		flex-direction: column; 
+		border-left: 1px solid #ccc;
+		min-width: 100px; 
+		overflow: hidden; 
+		height: 100%; 
+		position: relative;
+	}
+
+	.side-column .section { 
+		flex: 0 0 50%; 
+		min-height: 100px; 
+		overflow: hidden; 
+	}
+
+	.status-section { 
+		background: #f0fff0; 
+		display: flex; 
+		flex-direction: column; 
+		overflow: hidden; 
+	}
+
+	#status-content { 
+		flex: 1; 
+		overflow: hidden; 
+		display: flex; 
+		flex-direction: column; 
+		height: 100%; 
+	}
+
+	.map-section { 
+		background: #e9f5ff; 
+	}
+
+	.map-section, .status-section { 
+		position: relative; 
+		overflow: hidden; 
+	}
+
+	.layer {
+		position: absolute; 
+		top: 0; 
+		left: 0; 
+		width: 100%; 
+		height: 100%; 
+		pointer-events: none;
+	}
+
+
+
+	#webcam { 
+		width: 100%; 
+		height: 100%; 
+		object-fit: cover; 
+	}
+
+	#info-layer { 
+		z-index: 3; 
+		pointer-events: auto; 
+	}
+
+
+
+	#telemetry {
+	position: absolute;
+	top: 0px;
+	left: 0;
+	right: 0;
+	width: 100%;
+	color: #fff;
+	font-family: 'Roboto Mono', monospace;
+	text-shadow: 0 0 2px #000;
+	background: rgba(0, 0, 0, 0.3);
+	padding: 0.5rem 0;
+	display: flex;
+	justify-content: space-around;
+	align-items: center;
+	box-sizing: border-box;
+	white-space: nowrap;
+	/* Base font size for the container */
+	font-size: clamp(0.75rem, 1vw, 1rem); /* Using clamp() for better control */
+	}
+
+	#telemetry p {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.2rem;
+	flex: 1;
+	text-align: center;
+	/* Reset font size to inherit from parent */
+	font-size: 1em;
+	}
+
+	#telemetry span {
+	font-weight: bold;
+	/* Relative to parent font size */
+	font-size: 1.2em; /* 20% larger than parent */
+	/* Fallback absolute size */
+	font-size: clamp(0.9rem, 1vw, 1.2rem);
+	}
+
+	@media (max-width: 768px) {
+	#telemetry {
+	font-size: clamp(0.7rem, 2vw, 0.9rem);
+	}
+
+	#telemetry span {
+	font-size: clamp(0.8rem, 2.2vw, 1rem);
+	}
+	}
+
+	@media (max-width: 480px) {
+	#telemetry {
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	padding: 0.3rem 0;
+	font-size: clamp(0.65rem, 2.5vw, 0.8rem);
+	}
+
+	#telemetry p {
+	flex: 1 0 calc(50% - 1rem);
+	}
+
+	#telemetry span {
+	font-size: clamp(0.75rem, 2.8vw, 0.9rem);
+	}
+	}
+
+	#audio-toggle {
+	cursor: pointer;
+	transition: transform 0.2s;
+	}
+
+	#audio-toggle:hover {
+	transform: scale(1.1);
+	}
+
+	#audio-icon {
+	stroke: #00ff00;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	fill: none;
+	transition: stroke 0.2s;
+	}
+
+
+	/* Add to your existing flicker animation */
+	@keyframes flicker {
+	0% { opacity: 1; }
+	50% { opacity: 0.5; }
+	100% { opacity: 1; }
+	}
+
+	#hud-layer {
+		z-index: 2;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		position: relative;
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+	}
+
+	#hudCanvas {
+		border: 0px solid #0ff;
+		background-color: transparent;
+		display: block;
+		margin: 0 auto;
+		 position: relative;
+		z-index: 2;
+	}
+
+	#altCanvas {
+		position: absolute;
+		left: 10px;
+		top: 50%;
+		transform: translateY(-50%);
+		background-color: transparent;
+		border: 0px solid #ff0;
+		z-index: 3;
+	}
+
+	#speedCanvas {
+		position: absolute;
+		right: 10px;
+		top: 50%;
+		transform: translateY(-50%);
+		background-color: transparent;
+		border: 0px solid #f0f;
+		z-index: 3;
+	}
+
+	.section { 
+		position: relative; 
+		height: 100%; 
+		padding: 0rem; 
+	}
+
+	.section h2 { 
+		margin-bottom: 1rem; 
+	}
+
+	footer { 
+		background: #333; 
+		color: #00ff00; 
+		padding: 1rem; 
+		text-align: center; 
+		z-index: 10; 
+	}
+
+	.context-menu {
+		display: none; 
+		position: absolute; 
+		background: rgba(0, 0, 0, 0.8); 
+		color: #0f0;
+		font-size: .7em;
+		border: 1px solid #ccc; 
+		box-shadow: 2px 2px 5px rgba(0,0,0,0.2); 
+		z-index: 2000;
+		min-width: 120px; /* Ensure sufficient width */
+	}
+
+	.context-menu ul { 
+		list-style: none; 
+		 margin: 0;
+	padding: 0;
+	}
+
+	.context-menu ul li { 
+		padding: 8px 12px; 
+		cursor: pointer;
+    color: #0f0; /* Match map-context-menu */
+    user-select: none; /* Prevent text selection */
+	}
+
+	.context-menu ul li:hover { 
+		background: #f0f0f0;
+	color: #000; /* Ensure text is readable on light background */			
+	}
+
+	/* Specific styles for map context menu */
+	#map-context-menu.context-menu {
+	min-width: 150px; /* Ensure readable width */
+	}
+
+	#map-context-menu .context-menu-item {
+	padding: 8px 12px;
+	color: #0f0;
+	}
+
+	#map-context-menu .context-menu-item:hover {
+	background: #f0f0f0;
+	color: #000;
+	}		
+
+
+	.column-resizer, .row-resizer {
+		position: absolute; 
+		background: #1a0d0d; 
+		z-index: 5;
+	}
+
+	.column-resizer { 
+		top: 0; 
+		bottom: 0; 
+		width: 8px; 
+		cursor: col-resize; 
+	}
+
+	.row-resizer { 
+		left: 0; 
+		right: 0; 
+		height: 8px; 
+		cursor: row-resize; 
+		width: 100%; 
+		transform: translateY(-50%); 
+	}
+
+	.column-resizer:hover, .row-resizer:hover { 
+		background: rgba(0, 120, 215, 0.2); 
+	}
+
+	.column-resizer.active, .row-resizer.active { 
+		background: rgba(0, 120, 215, 0.4); 
+	}
+
+	.tab-buttons {
+		background: #333; 
+		border-bottom: 1px solid #ccc; 
+		white-space: nowrap;
+		overflow-x: auto; 
+		overflow-y: hidden; 
+		padding-bottom: 5px;
+	}
+
+	.tab-button {
+		background: inherit; 
+		display: inline-block; 
+		border: none; 
+		outline: none;  
+		color: #0f0;
+		cursor: pointer; 
+		padding: 1px 15px; 
+		transition: background 0.3s; 
+		font-size: 1em;
+	}
+
+	.tab-button:hover { 
+		background: #ddd; 
+	}
+
+	.tab-button.active { 
+		background: #333; 
+		font-weight: bold; 
+	}
+
+	.tab-content {
+		flex: 1;
+		overflow-y: auto;
+		height: 100%;
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		background: #333;
+	}
+
+	.tab-pane {
+		display: none;
+		width: 100%;
+		height: 100%;
+		animation: fadeEffect 0.5s;
+	}
+
+	.tab-pane.active {
+		display: block;
+	}
+
+	.param-row label {
+		display: inline-block; 
+		width: 180px; 
+		font-weight: bold; 
+		margin-left: 30px;
+		color: #0f0;
+	}
+
+	.param-row span { 
+		font-family: monospace; 
+		background: #333; 
+		padding: 2px 4px; 
+		border-radius: 3px;
+		color: #0f0;
+	}
+
+	hr { 
+		margin: 15px 0; 
+		border: 0; 
+		border-top: 1px solid #eee; 
+	}
+
+	#status-text-log {
+		background: #f8f8f8; 
+		color: #333; 
+		font-size: 0.9em; 
+		height: 200px;
+		overflow-y: scroll; 
+		border: 1px solid #ccc; 
+		padding: 5px; 
+		font-family: monospace;
+		white-space: pre-wrap;
+	}
+
+	#tab-gauges {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		background: #0d0d0d;
+	}
+
+	.indicator-container {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		grid-template-rows: repeat(2, 1fr);
+		gap: 10px;
+		padding: 10px;
+		width: 100%;
+		height: 100%;
+		box-sizing: border-box;
+		background: #333;
+	}
+
+	.side-column #tab-gauges { 
+		overflow-y: auto; 
+		max-height: 100%; 
+		height: auto; 
+	}
+
+	.side-column #tab-gauges .indicator-container {
+		display: flex !important;
+		flex-direction: column !important;
+		gap: 10px;
+		height: auto;
+		min-height: 0;
+		width: 100%;
+	}
+
+	.side-column #tab-gauges .indicator {
+		width: 100%;
+		max-width: 150px;
+		min-width: 100px;
+		margin: 0 auto;
+	}
+
+	.side-column.wide #tab-gauges .indicator-container {
+		display: grid !important;
+		grid-template-columns: repeat(3, 1fr) !important;
+		grid-template-rows: repeat(2, 1fr) !important;
+		gap: 10px !important;
+		padding: 10px !important;
+		height: 100% !important;
+		width: 100% !important;
+	}
+
+	.side-column.wide #tab-gauges .indicator {
+		width: 100% !important;
+		max-width: none !important;
+		min-width: 0 !important;
+		aspect-ratio: 1/1 !important;
+	}
+
+	#map-content { 
+		width: 100%; 
+		height: 100%; 
+		position: relative; 
+		overflow: hidden; 
+	}
+
+	#map_canvas {
+		width: 100%;
+		height: 100%;
+		position: absolute;
+		top: 0;
+		left: 0;
+		display: block;
+	}
+
+	.indicator {
+		width: 100%;
+		aspect-ratio: 1/1;
+		min-width: 0;
+		display: block;
+	}
+
+	.map-section {
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+		position: relative;
+		background: #333333;
+	}
+
+	#tab-map {
+		position: relative;
+		height: 100%;
+		width: 100%;
+	}
+
+	#map-coordinates {
+		position: absolute; 
+		bottom: 40px; 
+		left: 50%; 
+		transform: translateX(-50%);
+		background: rgba(0, 0, 0, 0.6); 
+		color: white; 
+		padding: 5px 10px; 
+		border-radius: 4px;
+		font-size: 12px; 
+		z-index: 1000; 
+		pointer-events: none;
+	}
+
+	#map-coordinates span { 
+		font-weight: bold;
+	}
+
+	#heading-layer {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 4;
+	}
+
+	#indicator-heading-main-wrapper {
+		position: absolute;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 100%;
+		height: 50%;
+		overflow: hidden;
+		pointer-events: auto;
+		max-width: 100%;
+	}
+
+	#indicator-heading-main {
+		position: absolute;
+		top: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 100%;
+		height: 200%;
+		background-color: transparent;
+		border: none;
+	}
+
+
+
+	header {
+	background: #333;
+	color: white;
+	padding: 0 0;
+	display: flex;
+	justify-content: center;
+	position: relative;
+	z-index: 10;
+	}
+
+	.header-icons {
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+
+	padding: 0 1rem;
+	}
+
+	.icon-container {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.25rem;
+	cursor: pointer;
+	}
+
+	.header-icon {
+	width: 30px;
+	height: 30px;
+	fill: currentColor;
+	}
+
+	#battery-level {
+	transition: width 0.3s ease, fill 0.3s ease;
+	}
+
+	@keyframes pulse {
+	0% {
+	opacity: 0.8;
+	filter: drop-shadow(0 0 2px rgba(255, 255, 0, 0.7));
+	}
+	100% {
+	opacity: 1;
+	filter: drop-shadow(0 0 28px rgba(255, 0, 0, 1));
+	}
+	}
+
+	#battery-level[fill="#ff0000"] {
+	filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.7));
+	animation: pulse 1s infinite alternate;
+	}
+
+	#battery-indicator.low-battery {
+	animation: pulse 1s infinite alternate;
+	} 
+
+	/* Status light colors */
+	.status-good {
+	fill: #4CAF50 !important; /* Green */
+	}
+	.status-warning {
+	fill: #FFC107 !important; /* Yellow */
+	}
+	.status-error {
+	fill: #F44336 !important; /* Red */
+	}
+	.status-disconnected {
+	fill: #9E9E9E !important; /* Gray */
+	}		
+
+
+	/* --- NEW Sidebar Styles --- */
+	.sidebar {
+		height: 100%; /* Full-height */
+		width: 0; /* Initially hidden */
+		position: fixed; /* Stay in place */
+		z-index: 20; /* Sit on top of everything */
+		top: 0;
+		background-color:transparent ; /* #111  Black background */
+		overflow-x: hidden; /* Disable horizontal scroll */
+		transition: 0.3s; /* Animation */
+		padding-top: 60px; /* Place content below the close button */
+		color: white;
+	}
+
+	.sidebar.left {
+		left: 0;
+	}
+
+	.sidebar.right {
+		right: 0;
+	}
+
+
+
+
+	.sidebar .close-btn {
+		position: absolute; background-color: #091a13; 
+		display: block;
+		border: none;border-radius: 12px;
+		top: -50px; /* Adjusted top position */
+		right: 12px;
+		font-size: 16px;
+		margin: 70px 0px; /* Not needed for right aligned button */
+		color: #42db3a;
+		padding: 10px 15px;
+		text-align: center;
+		text-decoration: none;
+		cursor: pointer;
+		 z-index: 115;
+		   transition-duration: 0.4s;
+	}
+
+	/* Specific close button position for left sidebar */
+	.sidebar.left .close-btn {
+		 right: 25px; /* Keep it on the right for consistency */
+	}
+
+	/* --- NEW Overlay Style --- */
+	#overlay {
+		position: fixed;
+		display: none; /* Hidden by default */
+		width: 100%;
+		height: 100%;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: transparent;
+		z-index: 15; /* Below sidebar, above content/header */
+		cursor: pointer; /* Indicate it's clickable */
+		transition: background-color 0.5s; /* Match sidebar transition */
+	}
+
+	/* --- NEW Main Content Style --- */
+	.main-content {
+		padding: 20px;
+		transition: margin-left .5s, margin-right .5s; /* Only needed if pushing content */
+		/* For overlay effect, no margin changes needed */
+		z-index: 1; /* Ensure it's below header and overlay */
+		position: relative; /* Needed for z-index */
+	}
+
+	.buttonUpdate{
+	margin: 30px;
+	font-size: 18px;
+
+	}
+
+	.normal-btn {
+	background-color: #091a13;  
+	border: none;
+	color: #42db3a;
+	padding: 6px 15px;
+	text-align: center;
+	text-decoration: none;
+	display: block;
+	font-size: 16px;
+	margin: 5px 0px;
+	transition-duration: 0.4s;
+	cursor: pointer;
+	border-radius: 12px;
+	z-index: 115;
+	}
+	.normal-btn:hover {
+	background-color: #008CBA;
+	color: white;
+	}	
+
+	@keyframes flicker {
+	0% { opacity: 1; }
+	100% { opacity: 0.5; }
+	}
+
+	#speaker-status {
+	cursor: pointer;
+	}
+
+	#data-list {
+		list-style: none;
+		padding: 0;
+	}
+	#data-list li {
+		padding: 5px 0;
+		border-bottom: 1px solid #eee;
+	}
+	.key {
+		font-weight: bold;
+		display: inline-block;
+		width: 400px;
+	}
+
+
+
+	#home-button {
+	background: none;
+	border: none;
+	color: white;
+	cursor: pointer;
+	padding: 2px;
+	border-radius: 3px;
+	}
+
+
+	#home-button svg {
+	vertical-align: middle;
+	}
+
+	/* Add to your CSS file or <style> tag */
+	#system_status, [id^="sensor_"], #roll-value, #pitch-value, #yaw-value, #speed-value, #alt-value {
+	transition: all 0.2s ease;
+	}
+	.healthy, .not-healthy {
+	transition: color 0.2s ease, background-color 0.2s ease;
+	}
+
+
+
+	.mission-controls {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 0px;
+	justify-content: space-around;
+	}
+
+	#mission-table {
+	width: 100%;
+	border-collapse: collapse;
+	background: #333;
+	color: #0f0;
+	font-size: 0.9em;
+	}
+
+	#mission-table th,
+	#mission-table td {
+	border: 1px solid #ccc;
+	padding: 4px;
+	text-align: center;
+	}
+
+	#mission-table th {
+	background: #091a13;
+	color: #42db3a;
+	}
+
+	#mission-table tbody tr:hover {
+	background: #444;
+	}
+
+	#mission-table input[type="text"],
+	#mission-table select {
+	width: 100%;
+	background: #222;
+	color: #0f0;
+	border: 1px solid #ccc;
+	padding: 4px;
+	font-family: monospace;
+	}
+
+	#mission-table input[type="checkbox"] {
+	cursor: pointer;
+	}
+
+	#mission-table .highlight {
+	background: #0f3 !important; /* Green highlight for current sequence */
+	color: #000;
+	}
+
+	.mavlink-output {
+	margin-top: 10px;
+	}
+
+	#mavlink-commands {
+	resize: none;
+	border: 1px solid #ccc;
+	}
+
+/* Overlay to block background interactions */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: none;
+}
+
+/* Popup dialog */
+.waypoint-popup {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    z-index: 1001;
+    max-width: 600px;
+    width: 90%;
+}
+
+/* Table styling within popup */
+.waypoint-popup table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+}
+
+.waypoint-popup th, .waypoint-popup td {
+    padding: 5px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.waypoint-popup th {
+    background: #f4f4f4;
+    font-weight: bold;
+}
+
+.waypoint-popup input[type="text"], .waypoint-popup select {
+    width: 100%;
+    padding: 3px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+/* Buttons */
+.waypoint-popup .buttons {
+    text-align: right;
+}
+
+.waypoint-popup button {
+    padding: 8px 15px;
+    margin-left: 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.waypoint-popup button.save {
+    background: #28a745;
+    color: #fff;
+}
+
+.waypoint-popup button.cancel {
+    background: #dc3545;
+    color: #fff;
+}
+
+
+
+#arm-status {
+    cursor: pointer;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+#arm-status:hover {
+    transform: scale(1.05);
+}
+
+#arm-status:active {
+    transform: scale(0.95);
+}
+
+#arm-status.pending {
+    animation: pulse 1s infinite;
+}
+
+#arm-status.error {
+    animation: shake 0.5s;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
+}
+
+.sensor-table {
+    width: 80%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.sensor-table th, .sensor-table td {
+    border: 1px solid #00ff00;
+    padding: 8px;
+    text-align: left;
+    color: #00ff00; /* Default color for cells */
+}
+
+.sensor-table th {
+    background-color: #00ff00;
+    font-weight: bold;
+    color: black;
+}
+
+.sensor-table tr:nth-child(even) {
+    background-color: transparent;
+}
+
+.sensor-table tr:hover {
+    background-color: #f5f5f5;
+}
+
+.sensor-table td.enabled {
+    background-color: #274883; /* Light green for enabled sensors */
+    font-weight: bold;
+    color: #00ff00; /* Ensure enabled sensor name retains green text */
+}
+
+.sensor-table td.healthy {
+    color: #00ff00; /* Green for healthy status */
+    font-weight: bold;
+}
+
+.sensor-table td.unhealthy {
+    color: red; /* Red for unhealthy status */
+    font-weight: bold;
+}
+
+.popup-message {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    z-index: 1000;
+    display: none;
+    font-size: 14px;
+    max-width: 80%;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: opacity 0.3s ease;
+}
+
+.popup-message.show {
+    display: block;
+    opacity: 1;
+}
+
+.popup-message.hide {
+    opacity: 0;
+}
+
+.popup-message.info {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+.popup-message.error {
+    background-color: rgba(200, 0, 0, 0.8);
+}
+.popup-message.success {
+    background-color: rgba(0, 200, 0, 0.8);
+}
+
+
+#parameter-tables {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.parameter-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+}
+
+.parameter-table th, .parameter-table td {
+    padding: 8px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.parameter-table th {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.parameter-table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.parameter-table tr:hover {
+    background-color: #ddd;
+}
+
+.parameter-table caption {
+    font-weight: bold;
+    padding: 10px;
+    background-color: #e0e0e0;
+    border: 1px solid #ddd;
+    border-bottom: none;
+}
+
+
+#speech-controls {
+    margin-top: 10px;
+}
+#speech-controls button {
+    margin-right: 5px;
+    padding: 5px 10px;
+}
+#speech-controls input {
+    width: 60px;
+    margin-right: 5px;
+}
+
+
+#autopilot-toggle {
+    pointer-events: all;
+    cursor: pointer;
+}
+
+#autopilot-icon {
+
+    z-index: 9999 !important;
+}
+
+
+/* Layer box container */
+.layer-box {
+    position: fixed;
+    bottom: 20px; /* 20px from bottom */
+    left: 20px; /* 20px from left */
+    width: 200px; /* Fixed width */
+    height: 200px; /* Fixed height */
+    background: rgba(0, 0, 0, 0);
+    color: #fff;
+    border: 0px solid #00ff00;
+    border-radius: 5px;
+    z-index: 1000;
+    /* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); */
+    overflow: hidden;
+}
+
+/* Header for dragging */
+.layer-header {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 0px;
+    cursor: move;
+    display: flex;
+    justify-content:center;
+    align-items: center;
+    user-select: none;
+}
+
+/* Close button */
+.close-btn {
+    background: Black;
+    border: none;
+    color: #00ff00;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 10px;
+}
+.close-btn:hover {
+    color: #ff5555;
+}
+
+.layer-content {
+    padding: 0; /* Remove padding to maximize canvas space */
+    height: calc(100% - 40px); /* Adjust for header height (~40px) */
+    overflow: hidden; /* Prevent scrollbars */
+}
+
+#avatar-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+
+
+
+
+/* Ensure header icons are vertically centered */
+.header-icons {
+    align-items: center;  /* Vertically center all children */
+}
+
+/* Standardise icon container behaviour */
+.icon-container,
+#object-detection,
+#audio-toggle,
+#autopilot-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Uniform SVG sizing for the three problematic icons */
+#audio-toggle svg {
+    width: 30px;
+    height: 30px;
+}
+#autopilot-toggle svg {
+    width: 30px;
+    height: 30px;
+}
+
+#object-detection svg {
+    width: 64px;
+    height: 64px;
+}
+
+/* Ensure #object-detection behaves like other icons */
+#object-detection {
+    cursor: pointer;
+    padding: 0.1rem;   /* Match .icon-container padding */
+    border-radius: 4px; /* Optional: consistent hover area */
+}
+
+
+
+
+/* ============================================================
+   REPLACE the existing camera-grid block in style.css
+   (lines ~1204-1263, everything from #camera-grid to the end)
+   with the rules below.
+
+   KEY CHANGE: #camera-grid is now position:absolute so its size
+   comes from the offset box of #webcam-layer (also position:absolute),
+   not from a percentage-height chain that breaks inside a flex child.
+   This makes it immune to whether the section is in .main-column or
+   .side-column (flex:0 0 50%).
+   ============================================================ */
+
+/* ── Webcam layer: keep exactly as before, no display change ── */
+#webcam-layer {
+    z-index: 1;
+    background: #000;
+    /* display stays block (default from .layer) so the existing
+       tWebcam toggle  layer.style.display = 'block'  still works */
+}
+
+/* ── Camera grid: fill the layer via absolute positioning ─────
+   Using position:absolute means the size comes from the layer's
+   offset dimensions, NOT from a height:100% chain that requires
+   an explicit height on every ancestor.                        */
+#camera-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    gap: 2px;
+    background: #000;
+    overflow: hidden;
+}
+
+/* ── Camera slot (one per camera) ──────────────────────────── */
+.camera-slot {
+    position: relative;
+    overflow: hidden;
+    background: #111;
+    /* min-width/height: 0 is critical for grid children so they
+       don't overflow their grid area */
+    min-width: 0;
+    min-height: 0;
+}
+
+.camera-slot--offline {
+    background: #1a0000;
+}
+
+/* ── MJPEG feed image ───────────────────────────────────────── */
+.camera-feed {
+    /* fill slot completely; contain keeps aspect ratio without
+       cropping (use cover if you prefer cropped fill) */
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* ── Slot label overlay (click to promote to main) ──────────── */
+.camera-slot-label {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    font-size: 10px;
+    font-family: monospace;
+    color: #0f0;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 1px 5px;
+    border-radius: 3px;
+    /* pointer-events:auto overrides the parent .layer's none,
+       so label clicks work even though webcam-layer passes through */
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+    z-index: 10;
+    transition: background 0.15s;
+}
+
+.camera-slot-label:hover {
+    background: rgba(0, 200, 0, 0.35);
+}
+
+/* ── "No cameras" placeholder ───────────────────────────────── */
+.camera-no-signal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #555;
+    font-size: 14px;
+    font-family: monospace;
+    white-space: nowrap;
+}
+
+
+
+

@@ -1,0 +1,300 @@
+asyncapi: "2.6.0"
+info:
+  title: Detection Service API
+  version: "2.0.0"
+  description: |
+    Non-blocking async YOLO detection service for multi-camera vision systems.
+    
+    This service accepts raw video frames via WebSocket, runs object detection
+    in background worker threads, and broadcasts detection results and telemetry.
+    
+    All frame queueing is non-blocking (< 1ms). Inference happens asynchronously
+    in background without blocking the client.
+  contact:
+    name: Vision Systems Team
+    email: ai-services@dronestation.local
+
+defaultContentType: application/json
+
+channels:
+  detection/frame/request:
+    description: Client sends a frame to the detection service for processing
+    publish:
+      message:
+        $ref: "#/components/messages/FrameQueueRequest"
+  
+  detection/frame/response:
+    description: Service acknowledges frame receipt and queue status
+    subscribe:
+      message:
+        $ref: "#/components/messages/FrameQueueResponse"
+  
+  detection/telemetry:
+    description: Service broadcasts detection telemetry every 5 seconds
+    subscribe:
+      message:
+        $ref: "#/components/messages/DetectionTelemetry"
+  
+  detection/results:
+    description: Service broadcasts detection results when objects are found
+    subscribe:
+      message:
+        $ref: "#/components/messages/DetectionResult"
+  
+  detection/events:
+    description: Service broadcasts service state change events
+    subscribe:
+      message:
+        $ref: "#/components/messages/ServiceEvent"
+
+components:
+  messages:
+    FrameQueueRequest:
+      name: FrameQueueRequest
+      description: Client sends a raw video frame for detection processing
+      contentType: application/json
+      payload:
+        type: object
+        required: [camera_id, frame_bytes, frame_height, frame_width]
+        properties:
+          camera_id:
+            type: integer
+            minimum: 0
+            maximum: 3
+            example: 0
+          frame_bytes:
+            type: string
+            format: base64
+            description: "Raw BGR uint8 frame data"
+          frame_height:
+            type: integer
+            minimum: 120
+            maximum: 2160
+            example: 720
+          frame_width:
+            type: integer
+            minimum: 160
+            maximum: 3840
+            example: 1280
+          frame_dtype:
+            type: string
+            enum: ["uint8"]
+            default: "uint8"
+          timestamp:
+            type: integer
+            description: Client capture timestamp (Unix ms)
+          request_id:
+            type: string
+            description: Unique request identifier for correlation
+    
+    FrameQueueResponse:
+      name: FrameQueueResponse
+      description: Service response to frame queue request
+      contentType: application/json
+      payload:
+        type: object
+        required: [queued, reason]
+        properties:
+          queued:
+            type: boolean
+            description: Was frame accepted for processing?
+            example: true
+          reason:
+            type: string
+            enum:
+              - "queued"
+              - "skipped (ratio 1)"
+              - "skipped (ratio 2)"
+              - "skipped (ratio 4)"
+              - "skipped (adaptive)"
+              - "queue_full"
+              - "detection_disabled"
+              - "invalid_frame_shape"
+              - "invalid_frame_dtype"
+              - "invalid_camera_id"
+            example: "queued"
+          request_id:
+            type: string
+            description: Echo of request request_id
+          timestamp:
+            type: integer
+            description: Service receive timestamp (Unix ms)
+          queue_depth:
+            type: number
+            minimum: 0
+            maximum: 10
+            example: 1.5
+    
+    DetectionTelemetry:
+      name: DetectionTelemetry
+      description: Service performance metrics (broadcast every 5s)
+      contentType: application/json
+      payload:
+        type: object
+        required: [class, data]
+        properties:
+          class:
+            type: string
+            enum: ["detection_telemetry"]
+          data:
+            type: object
+            required:
+              - enabled
+              - total_queued
+              - total_processed
+              - total_skipped
+              - avg_inference_ms
+              - avg_queue_depth
+              - max_concurrent_inferences
+              - frame_skip_ratio
+              - per_camera
+            properties:
+              enabled:
+                type: boolean
+                example: true
+              total_queued:
+                type: integer
+                minimum: 0
+                example: 4523
+              total_processed:
+                type: integer
+                minimum: 0
+                example: 3108
+              total_skipped:
+                type: integer
+                minimum: 0
+                example: 1415
+              avg_inference_ms:
+                type: number
+                minimum: 0
+                maximum: 2000
+                example: 125.5
+              avg_queue_depth:
+                type: number
+                minimum: 0
+                maximum: 10
+                description: "< 1.0 good, > 3.0 bad"
+                example: 0.8
+              max_concurrent_inferences:
+                type: integer
+                enum: [1, 2, 4]
+                example: 1
+              frame_skip_ratio:
+                type: integer
+                minimum: 1
+                maximum: 32
+                example: 2
+              per_camera:
+                type: object
+                description: "Per-camera stats (cameras 0-3)"
+                additionalProperties:
+                  type: object
+                  properties:
+                    queued:
+                      type: integer
+                    processed:
+                      type: integer
+                    skipped:
+                      type: integer
+                    last_inference_ms:
+                      type: integer
+          timestamp:
+            type: integer
+            description: "Unix ms"
+          broadcast_interval_ms:
+            type: integer
+            example: 5000
+    
+    DetectionResult:
+      name: DetectionResult
+      description: Object detection results from YOLO inference
+      contentType: application/json
+      payload:
+        type: object
+        required: [class, camera_id, objects_detected]
+        properties:
+          class:
+            type: string
+            enum: ["detection_result"]
+          camera_id:
+            type: integer
+            minimum: 0
+            maximum: 3
+          timestamp:
+            type: integer
+            description: "Inference completion timestamp (Unix ms)"
+          inference_time_ms:
+            type: integer
+            minimum: 0
+            maximum: 2000
+            example: 125
+          objects_detected:
+            type: array
+            description: "List of detected objects (empty if none)"
+            items:
+              type: object
+              required: [label, confidence, bbox]
+              properties:
+                label:
+                  type: string
+                  description: "e.g., person, car, dog"
+                  example: "person"
+                confidence:
+                  type: number
+                  minimum: 0.0
+                  maximum: 1.0
+                  example: 0.95
+                bbox:
+                  type: array
+                  minItems: 4
+                  maxItems: 4
+                  items:
+                    type: number
+                  description: "[x1, y1, x2, y2] pixel coordinates"
+                  example: [100, 200, 400, 600]
+                class_id:
+                  type: integer
+                  minimum: 0
+                  maximum: 80
+                  description: "COCO class ID"
+          frame_height:
+            type: integer
+            example: 720
+          frame_width:
+            type: integer
+            example: 1280
+    
+    ServiceEvent:
+      name: ServiceEvent
+      description: Service state change event
+      contentType: application/json
+      payload:
+        type: object
+        required: [class, event_type]
+        properties:
+          class:
+            type: string
+            enum: ["service_event"]
+          event_type:
+            type: string
+            enum:
+              - "model_loaded"
+              - "model_load_failed"
+              - "model_unloaded"
+              - "queue_overflow"
+              - "adaptive_skip_triggered"
+              - "inference_error"
+              - "inference_timeout"
+              - "configuration_changed"
+          message:
+            type: string
+            example: "YOLO model loaded successfully"
+          details:
+            type: object
+            additionalProperties: true
+          timestamp:
+            type: integer
+            description: "Unix ms"
+          severity:
+            type: string
+            enum: [info, warning, error, critical]

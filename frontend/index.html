@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resizable Layout with Expandable Sections</title>
+    <script src="./openlayers/ol.js"></script>
+    <link rel="stylesheet" href="./openlayers/ol.css" type="text/css">
+    <script src="./gl-matrix-min.js"></script>
+    <script src="./jquery-3.6.0.min.js"></script>
+    <script src="./flight-indicators.js"></script>
+    <link rel="stylesheet" href="./flight-indicators.css">
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+
+<body>
+	<header>
+		  <div class="header-icons">
+		  
+				<!-- Left Menu -->
+				<div class="icon-container" id="left-menu-btn">
+				  <svg class="header-icon" viewBox="0 0 24 24">
+					<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+				  </svg>
+				</div>
+				
+				<!-- WebSocket Status -->
+				<div id="websocket-status">
+					<svg class="header-icon" viewBox="0 -31.5 256 256" width="30px" height="30px">
+						<path d="M192.440223,144.644612 L224.220111,144.644612 L224.220111,68.3393384 L188.415329,32.5345562 L165.943007,55.0068785 L192.440223,81.5040943 L192.440223,144.644612 Z M224.303963,160.576482 L178.017688,160.576482 L113.451687,160.576482 L86.954471,134.079266 L98.1906322,122.843105 L120.075991,144.728464 L165.104487,144.728464 L120.746806,100.286931 L132.06682,88.9669178 L176.4245,133.324599 L176.4245,88.2961022 L154.622994,66.4945955 L165.775303,55.3422863 L110.684573,0 L56.3485097,0 L0,0 L31.6960367,31.6960367 L31.6960367,31.7798886 L31.8637406,31.7798886 L97.4359646,31.7798886 L120.662954,55.0068785 L86.7029152,88.9669178 L63.4759253,65.7399279 L63.4759253,47.7117589 L31.6960367,47.7117589 L31.6960367,78.9046839 L86.7029152,133.911562 L64.3144448,156.300033 L100.119227,192.104815 L154.45529,192.104815 L256,192.104815 L224.303963,160.576482 Z" fill="#ff0000" />
+					</svg>
+					<span style="font-size: 0.8rem;">Ws</span>
+				</div>
+								
+
+				<!-- GPS Status id="gps-fix-light"-->
+				<div   id="gps-status"> 
+				  <svg class="header-icon" viewBox="0 0 30 30">
+					<svg width="30px" height="30px" viewBox="0 0 64 64"    >
+					<defs><style>.gps_f{fill:#ff0000;}</style></defs><title></title>
+					<path class="gps_f"  d="M49.28,36.55a3,3,0,0,0-4.24,0L41.5,40.09l-2.43-2.43,5.12-5.12a6,6,0,0,0,0-8.49l-1.41-1.41.83-.84a3,3,0,0,0,1.29.3A3,3,0,0,0,47,17a3.08,3.08,0,0,0-4.24,0h0a3,3,0,0,0-.88,2.12,3,3,0,0,0,.3,1.29l-.84.83L40,19.81a6,6,0,0,0-8.49,0l-5.12,5.12L23.91,22.5,27.45,19a3,3,0,0,0,0-4.24L13.61.88a3.09,3.09,0,0,0-4.25,0L.88,9.36a3,3,0,0,0,0,4.25L14.72,27.45a3,3,0,0,0,4.24,0l3.54-3.54,2.43,2.43-6.19,6.2A9,9,0,1,0,31.46,45.26l6.2-6.19,2.43,2.43L36.55,45a3,3,0,0,0,0,4.24L50.39,63.12a3,3,0,0,0,4.25,0l8.48-8.48a3,3,0,0,0,0-4.25ZM44.19,18.39h0a1,1,0,0,1,1.42,1.42,1,1,0,0,1-1.42,0,1,1,0,0,1,0-1.42ZM19.53,24.06,15.46,20l1.91-1.91,4.07,4.07ZM6.36,16.26l2-2L14,20l-2,2Zm2.69-2.68L11,11.67l5.7,5.7-1.91,1.91ZM6.18,6.89,10.25,11,8.34,12.87,4.27,8.8ZM8.8,4.27l4.07,4.07L11,10.25,6.89,6.18ZM22,12.07l-2,2-5.71-5.7,2-2Zm-2.69,2.68-1.91,1.91L11.67,11l1.91-1.91Zm2.87,6.69-4.07-4.07L20,15.46l4.07,4.07ZM26,17.55l-1.27,1.27L20.7,14.75l2-2L26,16.14A1,1,0,0,1,26,17.55ZM11.49,2a1,1,0,0,1,.7.29l3.36,3.37-2,2L9.51,3.56l1.27-1.27A1,1,0,0,1,11.49,2ZM2,11.49a1,1,0,0,1,.29-.71L3.56,9.51l4.07,4.07-2,2L2.29,12.19A1,1,0,0,1,2,11.49ZM16.14,26l-3.37-3.37,2-2,4.07,4.07L17.55,26A1,1,0,0,1,16.14,26Zm22.4,9.32-.18-.17a2,2,0,0,0-2.83,0l-.71.7a1,1,0,0,1-1.41,0,1,1,0,0,1-.29-.7,1,1,0,0,1,.29-.71l.71-.71a2,2,0,0,0,0-2.83l-1.06-1.06a2,2,0,0,0-2.83,0l-.71.71a1,1,0,0,1-1.41-1.41l.7-.71a2,2,0,0,0,0-2.83l-.17-.18,3.53-3.53,9.9,9.9Zm0-14.14,2.12,2.12h0l2.12,2.12a4,4,0,0,1,.62,4.87L33.67,20.6A4.1,4.1,0,0,1,38.54,21.22Zm-10.61,5,.18.18a1,1,0,0,1,0,1.41l-.71.71a2,2,0,0,0,2.83,2.83l.7-.71a1,1,0,0,1,1.42,0l1.06,1.06a1,1,0,0,1,0,1.42l-.71.7a2,2,0,1,0,2.83,2.83l.71-.71a1,1,0,0,1,1.41,0l.18.18-7.07,7.07-9.9-9.9ZM18.16,39.8a9.24,9.24,0,0,1,6,6,7,7,0,0,1-6-6Zm7.11,6.09a10.31,10.31,0,0,0-7.16-7.16,6.94,6.94,0,0,1,1.38-4l9.8,9.8A6.94,6.94,0,0,1,25.27,45.89ZM57.82,57.11,53.75,53l1.91-1.91,4.07,4.07ZM55.2,59.73l-4.07-4.07L53,53.75l4.07,4.07ZM42,51.93l2-2,5.71,5.7-2,2Zm2.69-2.68,1.91-1.91,5.7,5.7L50.42,55Zm-.25-9.31L48.54,44l-1.91,1.91-4.07-4.07Zm-2.62,2.62,4.07,4.07L44,48.54l-4.07-4.07ZM53,52.33l-5.7-5.7,1.91-1.91,5.7,5.7ZM50,44l2-2,5.71,5.71-2,2Zm-2.8-6.34a1,1,0,0,1,.7.29l3.37,3.37-2,2-4.07-4.07L46.45,38A1,1,0,0,1,47.16,37.67ZM38,46.45l1.27-1.27,4.07,4.07-2,2L38,47.86A1,1,0,0,1,38,46.45ZM51.81,61.71l-3.36-3.37,2-2,4.07,4.07-1.27,1.27A1,1,0,0,1,51.81,61.71Zm9.9-8.49-1.27,1.27-4.07-4.07,2-2,3.37,3.36a1,1,0,0,1,0,1.41Z">		</path>
+					<path class="gps_f" d="M52.85,28.27a1,1,0,0,0,1.42,0A13.1,13.1,0,0,0,35.75,9.73a1,1,0,1,0,1.4,1.43A11.1,11.1,0,0,1,52.84,26.85,1,1,0,0,0,52.85,28.27Z"></path>
+					<path class="gps_f" d="M32.91,6.92A17.09,17.09,0,0,1,57.08,31.09a1,1,0,0,0,.71,1.7,1,1,0,0,0,.72-.29,19.1,19.1,0,0,0-27-27,1,1,0,0,0,1.41,1.43Z"></path>
+					<path class="gps_f" d="M48.61,24a1,1,0,0,0,.69.27A1,1,0,0,0,50,24,7.09,7.09,0,0,0,40,14a1,1,0,1,0,1.38,1.45,5.09,5.09,0,0,1,7.19,7.19A1,1,0,0,0,48.61,24Z">
+					</path>
+					</g>
+					</svg>
+				  </svg>
+				  <span id="gps-percent" style="font-size: 0.8rem;">-hdg</span>
+				</div>
+				
+				
+				<div id="audio-toggle" class="icon-container" width="30px" height="30px" title="Toggle warning sounds">
+				  <svg class="header-icon" viewBox="0 0 22 22">
+					<path id="audio-icon" d="M16 9C16.5 9.5 17 10.5 17 12C17 13.5 16.5 14.5 16 15M19 6C20.5 7.5 21 10 21 12C21 14 20.5 16.5 19 18M13 3L7 8H5C3.89543 8 3 8.89543 3 10V14C3 15.1046 3.89543 16 5 16H7L13 21V3Z"/>
+				  </svg>
+				</div>
+				
+				<div id="warning-status">
+				  <svg width="44px" height="44px" viewBox="0 0 24 24">
+					<g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+					  <g transform="translate(0.000000, 2.000000)" fill="#000343">
+						<g>
+						  <rect x="2" y="10" width="11" height="2"></rect>
+						  <path
+							d="M12,9 L3,9 L3,7.667 C3,5.826 3.75,3 7.5,3 C11.25,3 12,5.826 12,7.667 L12,9 L12,9 Z"
+							class="periodic-fill"
+						  ></path>
+						  <rect x="7" y="0" width="1" height="2" class="periodic-fill"></rect>
+						  <rect
+							transform="translate(3.656925, 1.792551) rotate(-45.000000) translate(-3.656925, -1.792551)"
+							x="3.15692536"
+							y="0.792551342"
+							width="0.99999041"
+							height="1.99998082"
+							class="periodic-fill"
+						  ></rect>
+						  <rect
+							transform="translate(12.656577, 2.206890) rotate(45.000000) translate(-12.656577, -2.206890)"
+							x="12.1565768"
+							y="1.20689008"
+							width="0.99999041"
+							height="1.99998082"
+							class="periodic-fill"
+						  ></rect>
+						  <rect x="13" y="6" width="2" height="1" class="periodic-fill"></rect>
+						  <rect x="0" y="6" width="1.75" height="1" class="periodic-fill"></rect>
+						</g>
+					  </g>
+					</g>
+				  </svg>
+				</div>
+				
+				<div id="arm-status">
+					<svg width="44px" height="44px" viewBox="0 0 24 24">
+						<g id="SVGRepo_iconCarrier">
+							<path d="M4.35009 13.3929L8 16L11.6499 13.3929C13.7523 11.8912 15 9.46667 15 6.88306V3L8 0L1 3V6.88306C1 9.46667 2.24773 11.8912 4.35009 13.3929Z" fill="#ff0000"></path>
+							<text x="8" y="9" font-family="Arial" font-size="4" fill="#000000" text-anchor="middle" dominant-baseline="middle" pointer-events="none" tabindex="-1">ARM</text>
+						</g>
+					</svg>
+				</div>
+
+				<!-- Battery Indicator -->
+				<div id="battery-indicator" class="status-good">
+				  <svg class="header-icon" viewBox="0 0 20 20">
+					<rect x="1" y="6" width="18" height="12" rx="1" ry="1" fill="none" stroke="currentColor"/>
+					<rect x="19" y="9" width="2" height="6" fill="currentColor"/>
+					<rect id="battery-level" x="2" y="7" width="16" height="10" rx="0.5" ry="0.5" fill="green"/>
+				  </svg>
+				  <span id="battery-percent" style="font-size: 0.8rem;">--%</span>
+				</div>
+				
+				<!-- MAVLink Status -->
+				<div id="mavlink-status">
+					<svg  fill="#e16b09" version="1.1" id="Capa_1" width="32px" height="32px"
+					 viewBox="-20.21 -20.21 242.57 242.57" xml:space="preserve" stroke="#e16b09">
+
+				  <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+				  <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"
+					 stroke="#e16b09" stroke-width="26.27937"></g>
+
+				  <g id="SVGRepo_iconCarrier">
+					<g>
+					  <g>
+						<path d="M127.739,3.765V18.94c22.63,0.81,69.501,25.441,74.41,82.242C202.149,54.605,170.594,15.479,127.739,3.765z"></path>
+						<path d="M53.553,47.648c0,0,9.227,0,20.877,0l24.832,24.824h10.139L95.305,47.648c9.848,0,18.841,0,23.425,0
+								 c52.141,0,52.998,70.118,0,70.118c68.423,0,70.599-85.504,0-85.504c-8.992,0-16.735,0-23.432,0L109.401,7.43H99.262L74.43,32.261
+								 c-16.981,0-20.332,0-20.865,0c-6.366,0-22.217,4.795-22.259,7.685C31.252,42.851,47.191,47.648,53.553,47.648z"></path>
+						<path d="M0,100.982c0,46.587,31.559,85.688,74.422,97.401v-15.181C51.79,182.39,4.915,157.768,0,100.982z"></path>
+						<path d="M148.589,154.526c0,0-9.221,0-20.867,0l-24.821-24.843H92.752l14.104,24.843c-9.848,0-18.837,0-23.421,0
+								 c-52.128,0-52.998-70.122,0-70.122c-68.423,0-70.601,85.498,0,85.498c8.997,0,16.733,0,23.433,0L92.76,194.74h10.141
+								 l24.838-24.838c16.987,0,20.329,0,20.866,0c6.38,0,22.218-4.793,22.266-7.69C170.899,159.314,154.953,154.526,148.589,154.526z"></path>
+						<path d="M101.074,83.925c9.478,0,17.159,7.68,17.159,17.158c0,9.466-7.682,17.147-17.159,17.147
+								 c-9.472,0-17.152-7.682-17.152-17.147C83.921,91.605,91.602,83.925,101.074,83.925z"></path>
+					  </g>
+					</g>
+				  </g>
+
+				 
+
+				</svg>
+<span style="font-size: 0.6rem;">Mav Link</span>
+					
+				</div>
+				
+				<div id="autopilot-toggle" class="icon-container" title="Toggle Autopilot">
+					<svg fill="#000000" version="1.1" id="autopilot-icon"          width="34px" height="34px" viewBox="0 0 124.64 124.64" style="cursor: pointer;">
+						<g>
+							<path d="M38.912,16.332l-0.457,1.518c-4.296,0.746-5.938,1.77-5.938,3.477c0,1.514,1.298,2.482,4.562,3.209 c-0.485,0.793-0.748,1.619-0.748,2.471c0,1.691,1.021,3.289,2.822,4.701c-0.563,1.951-0.005,4.719,0.457,6.4 c0.326,1.813,0.902,3.096,1.777,4.002c0.068,0.078,0.104,0.146,0.117,0.236c1.799,11.902,11.607,22.742,20.578,22.742 c10.603,0,20.036-11.975,21.869-22.713c0.016-0.09,0.081-0.201,0.035-0.152c0.908-0.893,1.532-2.188,1.811-3.75 c0.608-2.281,1.114-5.129,0.537-6.955c4.278-3.445,2.611-6.229,2.192-6.811c3.89-0.742,5.384-1.752,5.384-3.381 c0-1.799-1.811-2.836-6.628-3.596l-0.428-1.398c6.241-1.732,10.11-4.125,10.11-6.783C96.964,4.274,81.707,0,62.88,0 C44.062,0,28.8,4.273,28.8,9.549C28.8,12.207,32.67,14.599,38.912,16.332z M70.107,15.029c0.189,0.043,0.376,0.145,0.542,0.293 l0.032,0.035c0.148,0.164,0.25,0.352,0.293,0.541c0.129,0.541-0.301,1.357-0.795,1.883l-2.323,2.457l1.751,4.504 c0.1,0.271,0.049,0.611-0.121,0.83l-0.693,0.895c-0.256,0.324-0.76,0.287-0.967-0.061l-2.281-3.852l-2.328,2.184 c-0.004,0.002-0.008,0.006-0.012,0.01l0.141,1.076l-1.145,1.48l-0.336-0.412c-0.027-0.033-0.054-0.068-0.074-0.109l-0.492-0.918 c-0.146,0.051-0.402,0.125-0.624,0.125c-0.202,0-0.364-0.061-0.481-0.178c-0.22-0.223-0.235-0.592-0.053-1.105l-1.004-0.547 l-0.451-0.332l1.494-1.166l1.078,0.137c0.004-0.004,0.008-0.008,0.012-0.012l0.029-0.039l2.149-2.285l-3.85-2.283 c-0.179-0.107-0.286-0.279-0.296-0.473c-0.012-0.191,0.077-0.373,0.24-0.498l0.887-0.691c0.216-0.168,0.567-0.219,0.827-0.121 l4.509,1.75l2.455-2.32C68.822,15.259,69.613,14.914,70.107,15.029z M58.961,25.359l0.17,0.078v0.002 c0.11,0.307-0.039,0.477-0.346,0.357c-2.104-0.816-3.781-2.492-4.598-4.6c-0.119-0.305,0.049-0.455,0.357-0.344 c0.918,0.328,2,0.582,3.161,0.756c0.323,0.051,0.618,0.346,0.667,0.67c0.037,0.244,0.08,0.484,0.124,0.721l-1.388,1.063 L58.961,25.359z M59.687,20.939c-0.328-0.025-0.618-0.314-0.643-0.641c-0.031-0.406-0.049-0.826-0.061-1.256 c0.092,0.092,0.196,0.172,0.311,0.24l2.721,1.615l-0.105,0.111c-0.068,0.002-0.137,0.004-0.207,0.004 C61.005,21.013,60.331,20.988,59.687,20.939z M60.002,21.847l-0.709,0.543c-0.002-0.006-0.002-0.01-0.002-0.016 c-0.055-0.322,0.174-0.561,0.501-0.539C59.861,21.841,59.932,21.843,60.002,21.847z M65.257,16.371 c-0.022-0.326,0.217-0.555,0.539-0.502c0.375,0.061,0.732,0.133,1.073,0.207l-1.11,1.051l-0.474-0.186 C65.278,16.752,65.27,16.56,65.257,16.371z M64.619,10.765c1.807,0.703,3.297,2.039,4.199,3.734 c-0.421,0.211-0.8,0.492-1.085,0.762l-0.089,0.084c-0.611-0.156-1.262-0.289-1.945-0.393c-0.322-0.049-0.617-0.346-0.667-0.668 c-0.176-1.162-0.429-2.244-0.757-3.16C64.164,10.816,64.313,10.646,64.619,10.765z M64.36,16.265 c0.008,0.105,0.012,0.215,0.019,0.324l-2.518-0.979c-0.068-0.025-0.139-0.045-0.211-0.063c0.018,0,0.035,0,0.053,0 c0.699,0,1.372,0.027,2.016,0.074C64.044,15.648,64.337,15.939,64.36,16.265z M60.203,10.847c0.13-0.297,0.521-0.574,0.848-0.6 c0.215-0.018,0.434-0.027,0.652-0.027c0.22,0,0.438,0.01,0.652,0.027c0.326,0.025,0.717,0.303,0.848,0.6 c0.369,0.85,0.691,1.99,0.913,3.34c0.054,0.322-0.176,0.563-0.503,0.539c-0.633-0.045-1.274-0.066-1.91-0.066 c-0.636,0-1.277,0.021-1.91,0.066c-0.326,0.023-0.556-0.217-0.502-0.539C59.511,12.838,59.834,11.697,60.203,10.847z M59.687,15.623c0.32-0.022,0.647-0.041,0.982-0.055c-0.238,0.064-0.463,0.172-0.652,0.32l-0.879,0.686 c-0.041,0.031-0.08,0.064-0.117,0.1c0.008-0.137,0.013-0.275,0.023-0.408C59.068,15.939,59.359,15.648,59.687,15.623z M54.187,15.365c0.816-2.104,2.493-3.781,4.598-4.6c0.307-0.119,0.456,0.051,0.346,0.359c-0.329,0.916-0.582,1.998-0.758,3.16 c-0.049,0.322-0.344,0.619-0.667,0.668c-1.161,0.176-2.243,0.428-3.161,0.758C54.236,15.82,54.068,15.672,54.187,15.365z M53.668,17.627c0.026-0.324,0.303-0.715,0.603-0.846c0.849-0.369,1.989-0.691,3.337-0.912c0.324-0.053,0.563,0.176,0.54,0.502 c-0.043,0.635-0.066,1.275-0.066,1.91c0,0.637,0.023,1.277,0.066,1.91c0.022,0.326-0.216,0.557-0.54,0.502 c-1.348-0.221-2.488-0.543-3.337-0.912c-0.3-0.131-0.576-0.521-0.603-0.848c-0.018-0.215-0.025-0.432-0.025-0.652 C53.642,18.062,53.65,17.843,53.668,17.627z M62.633,37.443c7.882,0,14.947-1.377,19.769-3.557 c0.165-0.055,0.753-0.355,0.753-0.355c0.097-0.045,0.179-0.098,0.271-0.145c0.006,0.797-0.121,2.15-0.709,4.33l-0.033,0.148 c-0.156,0.936-0.475,1.66-0.985,2.166c-0.44,0.492-0.748,1.127-0.868,1.801C79.244,51.12,70.71,61.917,62.084,61.917 c-7.274,0-15.916-9.932-17.444-20.051c-0.11-0.713-0.414-1.348-0.938-1.922c-0.459-0.479-0.771-1.26-0.981-2.463l-0.034-0.15 c-0.479-1.723-0.62-2.998-0.614-3.822C46.888,35.906,54.306,37.443,62.633,37.443z"></path>
+							<path d="M101.729,75.925c-0.354-0.453-2.33-2.752-6.282-4.258c-3.473-1.076-12.057-3.921-16.757-7.322 c-1.358-0.979-2.95-2.879-2.95-2.879l-0.466,0.441c-0.228,0.214-0.461,0.402-0.69,0.607c-0.906,2.842-3.726,11.07-8.398,19.729 l-0.342-6.678l-2.643-1.889l2.643-1.887l-1.604-5.537H60.4l-1.604,5.537l2.642,1.887l-2.642,1.889l-0.341,6.678 c-4.673-8.657-7.493-16.887-8.398-19.729c-0.229-0.205-0.464-0.393-0.691-0.607L48.9,61.466c0,0-1.591,1.899-2.951,2.879 c-4.699,3.401-13.285,6.246-16.755,7.322c-3.953,1.506-5.927,3.805-6.282,4.258c-7.271,10.795-8.096,35.013-8.102,35.252 c0.064,3.224,1.023,4.324,1.352,4.459c16.026,7.132,36.191,8.968,46.01,9.002v0.002c0.049,0,0.101,0,0.148,0s0.1,0,0.148,0v-0.002 c9.818-0.034,29.983-1.87,46.01-9.002c0.328-0.135,1.285-1.235,1.352-4.459C109.823,110.938,109,86.72,101.729,75.925z"></path>
+						</g>
+					</svg>
+				</div>
+				
+				<!-- Joystick Status id="rc-signal-light" -->
+				<div   id="joystick-status">
+					<svg fill="#9a7b6d" height="34px" width="34px"   id="Capa_1"  viewBox="0 0 434.691 434.691"   stroke="#9a7b6d" stroke-width="0.43469100000000005">
+						<g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+						<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#e91d41" stroke-width="25.212077999999998"> 
+						<path d="M377.172,366.035v-45.721c0-5.104-2.754-9.565-6.845-12.012c0.003-0.148,0.011-0.295,0.011-0.443 c0-13.477-10.964-24.441-24.44-24.441c-10.644,0-19.715,6.843-23.061,16.358c-5.972-5.001-14.083-9.527-24.153-13.389 c-16.805-6.446-37.824-10.647-60.605-12.241v-33.309c19.531-5.52,27.304-17.778,27.304-26.281c0-4.993-1.962-8.299-3.692-11.216 c-1.801-3.036-3.356-5.658-3.356-10.939c0-4.169,1.781-6.592,4.247-9.946c3.043-4.139,6.83-9.29,6.83-18.251 c0-8.642-4.692-14.203-8.832-19.11c-3.907-4.632-7.281-8.632-7.281-15.13c0-6.105,3.786-10.587,8.17-15.776 c5.14-6.084,10.965-12.98,10.965-23.499c0-11.115-5.57-15.931-9.638-19.446c-3.41-2.948-5.469-4.729-5.469-9.758 c0-3.827,3.632-7.536,7.837-11.831c7.82-7.988,18.531-18.928,12.064-39.046C275.954,6.646,272.058,0,260.271,0 c-26.031,0-78.07,32.885-93.398,42.963c-2.58,1.695-3.23,3.776-3.322,5.224c-0.121,1.916,0.706,3.779,2.268,5.114 c3.893,3.327,17.398,15.599,27.782,33.82c14.315,25.119,3.467,42.3-14.506,70.764c-4.865,7.705-10.379,16.438-15.729,26.04 c-8.867,15.914-10.283,29.225-4.208,39.563c7.065,12.024,22.884,17.061,37.443,19.048v31.611 c-22.776,1.594-43.79,5.796-60.592,12.24c-10.07,3.862-18.181,8.388-24.153,13.389c-3.345-9.515-12.417-16.358-23.061-16.358 c-13.477,0-24.441,10.965-24.441,24.441c0,0.146,0.009,0.29,0.011,0.435c-4.099,2.445-6.859,6.91-6.859,12.02v46.01v30.432v27.936 c0,5.514,4.486,10,10,10h42.578c5.514,0,10-4.486,10-10v-13.936h194.525v13.936c0,5.514,4.486,10,10,10h42.578 c5.514,0,10-4.486,10-10v-58.367C377.187,366.227,377.175,366.132,377.172,366.035z M327.582,379.64h-36.039 c-10.116,0-18.316-8.2-18.316-18.316c0-10.116,8.2-18.316,18.316-18.316h36.039c10.116,0,18.316,8.2,18.316,18.316 C345.897,371.44,337.697,379.64,327.582,379.64z"></path> 
+						</g>
+						<g id="SVGRepo_iconCarrier"> 
+						<path d="M377.172,366.035v-45.721c0-5.104-2.754-9.565-6.845-12.012c0.003-0.148,0.011-0.295,0.011-0.443 c0-13.477-10.964-24.441-24.44-24.441c-10.644,0-19.715,6.843-23.061,16.358c-5.972-5.001-14.083-9.527-24.153-13.389 c-16.805-6.446-37.824-10.647-60.605-12.241v-33.309c19.531-5.52,27.304-17.778,27.304-26.281c0-4.993-1.962-8.299-3.692-11.216 c-1.801-3.036-3.356-5.658-3.356-10.939c0-4.169,1.781-6.592,4.247-9.946c3.043-4.139,6.83-9.29,6.83-18.251 c0-8.642-4.692-14.203-8.832-19.11c-3.907-4.632-7.281-8.632-7.281-15.13c0-6.105,3.786-10.587,8.17-15.776 c5.14-6.084,10.965-12.98,10.965-23.499c0-11.115-5.57-15.931-9.638-19.446c-3.41-2.948-5.469-4.729-5.469-9.758 c0-3.827,3.632-7.536,7.837-11.831c7.82-7.988,18.531-18.928,12.064-39.046C275.954,6.646,272.058,0,260.271,0 c-26.031,0-78.07,32.885-93.398,42.963c-2.58,1.695-3.23,3.776-3.322,5.224c-0.121,1.916,0.706,3.779,2.268,5.114 c3.893,3.327,17.398,15.599,27.782,33.82c14.315,25.119,3.467,42.3-14.506,70.764c-4.865,7.705-10.379,16.438-15.729,26.04 c-8.867,15.914-10.283,29.225-4.208,39.563c7.065,12.024,22.884,17.061,37.443,19.048v31.611 c-22.776,1.594-43.79,5.796-60.592,12.24c-10.07,3.862-18.181,8.388-24.153,13.389c-3.345-9.515-12.417-16.358-23.061-16.358 c-13.477,0-24.441,10.965-24.441,24.441c0,0.146,0.009,0.29,0.011,0.435c-4.099,2.445-6.859,6.91-6.859,12.02v46.01v30.432v27.936 c0,5.514,4.486,10,10,10h42.578c5.514,0,10-4.486,10-10v-13.936h194.525v13.936c0,5.514,4.486,10,10,10h42.578 c5.514,0,10-4.486,10-10v-58.367C377.187,366.227,377.175,366.132,377.172,366.035z M327.582,379.64h-36.039 c-10.116,0-18.316-8.2-18.316-18.316c0-10.116,8.2-18.316,18.316-18.316h36.039c10.116,0,18.316,8.2,18.316,18.316 C345.897,371.44,337.697,379.64,327.582,379.64z"></path> 
+						</g>
+					</svg>
+				</div>
+				
+				<!-- object detection -->
+				<div   id="object-detection">
+					<svg width="64px" height="64px" viewBox="-16.32 -16.32 56.64 56.64"   fill="#ff0000" stroke="#ff0000" stroke-width="0.00024000000000000003">
+						<g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+						<g id="SVGRepo_iconCarrier">
+							<path d="M2 17h1v5h5v1H2zm21 0h-1v5h-5v1h6zM3 3h5V2H2v6h1zm20-1h-6v1h5v5h1zm-9.75 12h-1.5a.75.75 0 0 1-.75-.75v-1.5a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-.75.75zM13 12h-1v1h1zm7 0h-5v1h5zm-10 0H5v1h5zm3 8v-5h-1v5zm-1-10h1V5h-1z"></path><path fill="none" d="M0 0h24v24H0z">
+							</path>
+						</g>
+					</svg>
+				</div>
+				
+				<!-- Right Menu -->
+				<div class="icon-container" id="right-menu-btn">
+				  <svg class="header-icon" viewBox="0 0 24 24">
+					<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+				  </svg>
+				</div>
+				
+				
+		  </div>
+	</header>
+
+<div id="left-sidebar" class="sidebar left">
+    <a href="javascript:void(0)" class="close-btn" id="close-left-btn">Flight Mode</a>
+    <a href="#" class="normal-btn" id="mode-manual">Manual</a>
+    <a href="#" class="normal-btn" id="mode-stabilized">Stabilized</a>
+    <a href="#" class="normal-btn" id="mode-acro">Acro</a>
+    <a href="#" class="normal-btn" id="mode-rattiude">Rattiude</a>
+    <a href="#" class="normal-btn" id="mode-altitude">Altitude</a>
+    <a href="#" class="normal-btn" id="mode-offboard">Offboard</a>
+    <a href="#" class="normal-btn" id="mode-position">Position</a>
+    <a href="#" class="normal-btn" id="mode-hold">Hold</a>
+    <a href="#" class="normal-btn" id="mode-mission">Mission</a>
+    <a href="#" class="normal-btn" id="mode-return">Return</a>
+    <a href="#" class="normal-btn" id="mode-follow">Follow Me</a>
+    <a href="#" class="normal-btn" id="mode-precision">Percision land</a>
+</div>
+<div id="right-sidebar" class="sidebar right">
+	<a href="javascript:void(0)" class="close-btn" id="close-right-btn">setting Mode</a>
+	<a href="#" class="normal-btn">Settings</a>
+	<a href="#" class="normal-btn">Profile</a>
+	<a href="#" class="normal-btn">Logout</a>
+</div>
+
+<div id="overlay"></div>	
+<!----------------------------------------------------content-area--------------------------------------->
+<div class="content-area">
+	<div class="main-column">
+		<div id="main-section" class="section" data-section="main" data-location="main">
+			<div id="main-content">
+				<div id="webcam-layer" 		class="layer">
+					 <!-- CameraUI.init() populates this with one <img> per active camera -->
+					<div id="camera-grid"></div>
+				</div>
+				<div id="hud-layer" 		class="layer">
+					<canvas id="hudCanvas"  ></canvas>
+					<canvas id="altCanvas"  ></canvas>
+					<canvas id="speedCanvas"></canvas>
+				</div>
+				<div id="info-layer" 		class="layer">
+					<div id="telemetry">
+						<p>Roll: <span id="roll-value">0.0</span>°</p>
+						<p>Pitch: <span id="pitch-value">0.0</span>°</p>
+						<p>Yaw: <span id="yaw-value">0.0</span>°</p>
+						<p>Altitude: <span id="alt-value">0.0</span>km/h</p>
+						<p>Speed: <span id="speed-value">0.0</span>m</p>
+					</div>
+				</div>
+				<div id="heading-layer" 	class="layer">
+					<div id="indicator-heading-main-wrapper">
+						<div id="indicator-heading-main" class="indicatorL"></div>
+					</div>
+				</div>
+
+			</div>
+		</div>
+	</div>
+	<div class="column-resizer" id="column-resizer"></div>
+	<div class="side-column">
+		<div id="map-section" class="section map-section" data-section="map" data-location="side">
+			<div id="map-content" data-section="map">
+				<div class="tab-buttons">
+					<button class="tab-button active" data-tab="tab-map">Map</button>
+					<button class="tab-button" data-tab="tab-setup">Setup Mission</button>
+					<button class="tab-button" data-tab="tab-config">Config</button>
+					<button class="tab-button" data-tab="tab-help">Help</button>
+				</div>
+				<div class="tab-content">
+					<div id="tab-map" class="tab-pane active" data-tab-section="map">
+						<div id="map_canvas"></div>
+						<div id="map-coordinates">
+							<!-- Your existing coordinate display -->
+							<div class="coordinate-display">
+								<span>Lat: <span id="lat-value">0.000000</span></span>
+								<span>Lon: <span id="lng-value">0.000000</span></span>
+							
+							<!-- Add this home button -->
+							<button id="home-button" onclick="centerTheHome()">
+								<svg viewBox="0 0 24 24" width="16" height="16">
+									<path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor"/>
+								</svg>
+							</button>
+							</div>
+						</div>
+					</div>
+					<div id="tab-setup" class="tab-pane" data-tab-section="setup">
+						<p>Configure initial settings for the map and system.</p>
+						<div class="mission-controls">
+							<button id="mission-load" class="miss-btn">Load Mission</button>
+							<button id="mission-save" class="miss-btn">Save Mission</button>
+							<button id="mission-name" class="miss-btn">Set Name</button>
+							<input  type="text"      class="acceptance-radius" value="-">
+							<button id="mission-add" class="miss-btn">Add Waypoint</button>
+							<button id="mission-delete" class="miss-btn">Delete Waypoint</button>
+							<button id="mission-execute" class="miss-btn">Execute Mission</button>
+						</div>
+						<table id="mission-table">
+							<thead>
+								<tr>
+									<th><input type="checkbox" id="select-all"></th>
+									<th>Sequence</th>
+									<th>Mission Type</th>
+									<th>Action</th>
+									<th>Latitude</th>
+									<th>Longitude</th>
+									<th>Altitude</th>
+									<th>Speed</th>
+									<th>Arrived Time</th>
+									<th>Hold Time</th>
+									<th>Acceptance Radius</th>
+									<th>Pass-through Radius</th>
+								</tr>
+							</thead>
+							<tbody id="mission-table-body"></tbody>
+						</table>
+						<div class="mavlink-output">
+							<textarea id="mavlink-commands" readonly rows="4" style="width: 100%; font-family: monospace; color: #0f0; background: #333;"></textarea>
+						</div>
+						<h2></h2>
+					</div>
+					<div id="tab-config" class="tab-pane" data-tab-section="config">
+						<h2>Config</h2>
+						<p>Adjust advanced configuration options.</p>
+						<!-- Add config-specific content here -->
+					</div>
+					<div id="tab-help" class="tab-pane" data-tab-section="help">
+						<h2>Help</h2>
+						<p>Find documentation and support resources.</p>
+						<!-- Add help-specific content here -->
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="row-resizer" class="row-resizer"></div>
+		<div id="status-section" class="section status-section" data-section="status" data-location="side">
+			<div id="status-content">
+				<div class="tab-buttons">
+					<button class="tab-button active" data-tab="tab-gauges">Gauges</button>
+					<button class="tab-button" data-tab="tab-system">System</button>
+					<button class="tab-button" data-tab="tab-global-pos">Global Pos</button>
+					<button class="tab-button" data-tab="tab-local-pos">Local Pos / Alt</button>
+					<button class="tab-button" data-tab="tab-attitude">Attitude</button>
+					<!-- <button class="tab-button" data-tab="tab-sensors-imu">Sensors Status</button> -->
+					<button class="tab-button" data-tab="tab-sensors-baro">Sensors: Baro</button>
+					<button class="tab-button" data-tab="tab-battery">Battery</button>
+					<button class="tab-button" data-tab="tab-rc">RC & Servos</button>
+					<button class="tab-button" data-tab="tab-mission">Mission/Cmd</button>
+					<button class="tab-button" data-tab="tab-estimator">Estimator</button>
+					<button class="tab-button" data-tab="tab-status-text">Status Text</button>
+				</div>
+				<div class="tab-content">
+					<div id="tab-gauges" class="tab-pane active">
+						<div class="indicator-container">
+							<div id="indicator-airspeed" class="indicator"></div>
+							<div id="indicator-altimeter" class="indicator"></div>
+							<div id="indicator-attitude" class="indicator"></div>
+							<div id="indicator-heading" class="indicator"></div>
+							<div id="indicator-turn" class="indicator"></div>
+							<div id="indicator-vertical" class="indicator"></div>
+						</div>
+					</div>
+					<div id="tab-system" class="tab-pane">
+						<h2>System Status</h2>
+						<div class="param-row"><label>Vehicle Type:</label> <span 			id="HEARTBEAT_type"				>---</span></div>
+						<div class="param-row"><label>Autopilot:</label> <span 				id="HEARTBEAT_autopilot"		>---</span></div>
+						<div class="param-row"><label>Mode:</label> <span 					id="HEARTBEAT_custom_mode"		>---</span> </div>
+						<div class="param-row"><label>Mode Flags:</label> <span 			id="HEARTBEAT_base_mode"		>---</span></div>
+						<div class="param-row"><label>System Status:</label> <span 			id="HEARTBEAT_system_status"	>---</span></div>
+						<div class="param-row"><label>CPU Load (%):</label> <span 			id="SYS_STATUS_load"			>---</span></div>
+						<div class="param-row"><label>Comm Errors:</label> <span 			id="SYS_STATUS_errors_comm"		>---</span></div>                           
+						<div class="param-row"><label>Unix Time (us):</label> <span 		id="SYSTEM_TIME_time_unix_usec"	>---</span></div>
+						<div class="param-row"><label>Time Since Boot (ms):</label> <span 	id="SYSTEM_TIME_time_boot_ms"	>---</span></div>
+						<hr>
+						<table id="sensor-status-table" class="sensor-table">
+							<thead>
+								<tr>
+									<th>Sensor Name</th>
+									<th>Present</th>
+									<th>Health</th>
+								</tr>
+							</thead>
+							<tbody id="sensor-status-body">
+								<!-- Rows will be populated dynamically by JavaScript -->
+							</tbody>
+						</table>
+						
+						<!-- <div  > <button onclick="mavlinkHEARTBEAT()"  class="buttonUpdate"  >Update</button> </div> -->
+						<!-- <script>  -->
+						<!-- function mavlinkHEARTBEAT() { -->
+													<!-- const paramDict = {  -->
+																		<!-- HEARTBEAT:["type","autopilot","base_mode","custom_mode","system_status"]																		 -->
+																		<!-- };														 -->
+													<!-- //console.log('Parameters to send:', paramDict);	HEARTBEAT_type: '---',  -->
+													<!-- if (state.websocket.readyState === WebSocket.OPEN) state.websocket.send(JSON.stringify(paramDict));  															 -->
+												<!-- }							 -->
+						<!-- </script> -->
+					</div>
+					<div id="tab-global-pos" class="tab-pane">
+						<h2>Raw Position (GPS/GNSS)</h2>
+						<div class="param-row"><label>Latitude (deg):</label> <span id="GPS_RAW_INT_lat">---</span></div>
+						<div class="param-row"><label>Longitude (deg):</label> <span id="GPS_RAW_INT_lon">---</span></div>
+						<div class="param-row"><label>Altitude MSL (m):</label> <span id="GPS_RAW_INT_alt">---</span></div>
+						<div class="param-row"><label>GPS Fix Type:</label> <span id="GPS_RAW_INT_fix_type">---</span></div>
+						<div class="param-row"><label>Satellites Visible:</label> <span id="GPS_RAW_INT_satellites_visible">---</span></div>
+						<div class="param-row"><label>GGPS HDOP horizontal dilution of position:</label> <span id="GPS_RAW_INT_eph">---</span></div>
+						<div class="param-row"><label>GPS VDOP vertical dilution of position:</label> <span id="GPS_RAW_INT_epv">---</span></div>
+						<div class="param-row"><label>GPS Ground Speed (m/s):</label> <span id="GPS_RAW_INT_vel">---</span></div>
+						<div class="param-row"><label>Course Over Ground (deg):</label> <span id="GPS_RAW_INT_cog">---</span></div>
+						<hr>
+						<h2>Global Position (GPS/GNSS)</h2>
+						<div class="param-row"><label>Latitude (deg):</label> <span id="GLOBAL_POSITION_INT_lat">---</span></div>
+						<div class="param-row"><label>Longitude (deg):</label> <span id="GLOBAL_POSITION_INT_lon">---</span></div>
+						<div class="param-row"><label>Altitude MSL (m):</label> <span id="GLOBAL_POSITION_INT_alt">---</span></div>
+						<div class="param-row"><label>Heading (deg):</label> <span id="GLOBAL_POSITION_INT_hdg">---</span></div>
+						<div class="param-row"><label>Altitude above ground:</label> <span id="GLOBAL_POSITION_INT_relative_alt">---</span></div>
+						<div class="param-row"><label>Ground X Speed (Latitude):</label> <span id="GLOBAL_POSITION_INT_vx">---</span></div>
+						<div class="param-row"><label>Ground Y Speed (Longitude):</label> <span id="GLOBAL_POSITION_INT_vy">---</span></div>
+						<div class="param-row"><label>Ground Z Speed (Altitude):</label> <span id="GLOBAL_POSITION_INT_vz">---</span></div>
+						<hr>
+						<h2>Filtered Local Position)</h2>
+						<div class="param-row"><label>X Position:</label> <span id="LOCAL_POSITION_NED_x">---</span></div>
+						<div class="param-row"><label>Y Position:</label> <span id="LOCAL_POSITION_NED_x">---</span></div>
+						<div class="param-row"><label>Z Position:</label> <span id="LOCAL_POSITION_NED_x">---</span></div>
+						<div class="param-row"><label>X Speed:</label> <span id="LOCAL_POSITION_NED_vx">---</span></div>
+						<div class="param-row"><label>Y Speed:</label> <span id="LOCAL_POSITION_NED_vy">---</span></div>
+						<div class="param-row"><label>Z Speed:</label> <span id="LOCAL_POSITION_NED_vz">---</span></div>
+						<div class="param-row"><label>X Acceleration:</label> <span id="LOCAL_POSITION_NED_ax">---</span></div>
+						<div class="param-row"><label>Y Acceleration:</label> <span id="LOCAL_POSITION_NED_ay">---</span></div>
+						<div class="param-row"><label>Z Acceleration:</label> <span id="LOCAL_POSITION_NED_az">---</span></div>
+						<hr>	
+					</div>
+					<div id="tab-local-pos" class="tab-pane">
+						<h2>Local Position & Altitude</h2>
+						<div class="param-row"><label>Local X (North, m):</label> <span id="LOCAL_POSITION_NED_x">---</span></div>
+						<div class="param-row"><label>Local Y (East, m):</label> <span id="LOCAL_POSITION_NED_y">---</span></div>
+						<div class="param-row"><label>Local Z (Down, m):</label> <span id="LOCAL_POSITION_NED_z">---</span></div>
+						<div class="param-row"><label>Local VX (North, m/s):</label> <span id="LOCAL_POSITION_NED_vx">---</span></div>
+						<div class="param-row"><label>Local VY (East, m/s):</label> <span id="LOCAL_POSITION_NED_vy">---</span></div>
+						<div class="param-row"><label>Local VZ (Down, m/s):</label> <span id="LOCAL_POSITION_NED_vz">---</span></div>
+						<div class="param-row"><label>Relative Altitude (m):</label> <span id="GLOBAL_POSITION_INT_relative_alt">---</span></div>
+						<div class="param-row"><label>Altitude MSL (m):</label> <span id="ALTITUDE_altitude_amsl">---</span></div>
+						<div class="param-row"><label>Altitude Terrain (m):</label> <span id="ALTITUDE_altitude_terrain">---</span></div>
+						<div class="param-row"><label>Bottom Clearance (m):</label> <span id="ALTITUDE_bottom_clearance">---</span></div>
+						<div class="param-row"><label>VFR Airspeed (m/s):</label> <span id="VFR_HUD_airspeed">---</span></div>
+						<div class="param-row"><label>VFR Groundspeed (m/s):</label> <span id="VFR_HUD_groundspeed">---</span></div>
+						<div class="param-row"><label>VFR Altitude (m):</label> <span id="VFR_HUD_alt">---</span></div>
+						<div class="param-row"><label>VFR Climb Rate (m/s):</label> <span id="VFR_HUD_climb">---</span></div>
+						<div class="param-row"><label>VFR Throttle (%):</label> <span id="VFR_HUD_throttle">---</span></div>
+					</div>
+					<div id="tab-attitude" class="tab-pane">
+						<h2>Attitude</h2>
+						<div class="param-row"><label>Roll (deg):</label> <span id="ATTITUDE_roll_deg">---</span></div>
+						<div class="param-row"><label>Pitch (deg):</label> <span id="ATTITUDE_pitch_deg">---</span></div>
+						<div class="param-row"><label>Yaw (deg):</label> <span id="ATTITUDE_yaw_deg">---</span></div>
+						<div class="param-row"><label>Roll Rate (deg/s):</label> <span id="ATTITUDE_rollspeed_deg">---</span></div>
+						<div class="param-row"><label>Pitch Rate (deg/s):</label> <span id="ATTITUDE_pitchspeed_deg">---</span></div>
+						<div class="param-row"><label>Yaw Rate (deg/s):</label> <span id="ATTITUDE_yawspeed_deg">---</span></div>				
+					</div>
+					<div id="tab-sensors-baro" class="tab-pane">
+						<h2>Sensors: Barometer</h2>
+						<div class="param-row"><label>Abs Pressure (hPa):</label> <span id="SCALED_PRESSURE_press_abs">---</span></div>
+						<div class="param-row"><label>Diff Pressure (hPa):</label> <span id="SCALED_PRESSURE_press_diff">---</span></div>
+						<div class="param-row"><label>Baro Temp (°C):</label> <span id="SCALED_PRESSURE_temperature">---</span></div>
+						<hr>
+						<div id="speech-controls">
+						<button onclick="speechQueueControls.viewQueue()">View Speech Queue</button>
+						<button onclick="speechQueueControls.clearQueue()">Clear Speech Queue</button>
+						<input type="number" id="queue-index" min="0" placeholder="Queue index">
+						<button onclick="speechQueueControls.removeMessage(parseInt(document.getElementById('queue-index').value))">Remove Message</button>
+						<button onclick="speechQueueControls.prioritizeMessage(parseInt(document.getElementById('queue-index').value))">Prioritize Message</button>
+					</div>
+					</div>
+					<div id="tab-battery" class="tab-pane">
+						<h2>Battery Status</h2>
+						<div class="param-row"><label>Voltage (V):</label> <span id="SYS_STATUS_voltage_battery">---</span></div>
+						<div class="param-row"><label>Current (A):</label> <span id="SYS_STATUS_current_battery">---</span></div>
+						<div class="param-row"><label>Remaining (%):</label> <span 			id="SYS_STATUS_battery_remaining">---</span></div>
+						<div class="param-row"><label>Consumed (mAh):</label> <span 		id="BATTERY_STATUS_current_consumed">---</span></div>
+						<div class="param-row"><label>Energy Consumed (Wh):</label> <span 	id="BATTERY_STATUS_energy_consumed">---</span></div>
+						<div class="param-row"><label>Temperature (°C):</label> <span 		id="BATTERY_STATUS_temperature">---</span></div>
+						<div class="param-row"><label>Voltages (Cell 1-6, mV):</label>
+							<span id="BATTERY_STATUS_voltages_0">---</span>,
+							<span id="BATTERY_STATUS_voltages_1">---</span>,
+							<span id="BATTERY_STATUS_voltages_2">---</span>,
+							<span id="BATTERY_STATUS_voltages_3">---</span>,
+							<span id="BATTERY_STATUS_voltages_4">---</span>,
+							<span id="BATTERY_STATUS_voltages_5">---</span>
+						</div>
+					</div>
+					<div id="tab-rc" class="tab-pane">
+						<h2>RC Input & Servo Output</h2>
+						<span>Ensure that RC input is enabled in PX4.</span> <br>
+						<span>Check parameters like RC_IN_MODE or RC_MAP_* in QGroundControl or the PX4 console to verify that RC channels are active.</span><br>
+						<span>If you’re using a simulated PX4 (e.g., SITL), ensure the simulation includes RC input data.</span><br>						
+						<div class="param-row"><label>RC Ch 1 Raw:</label> <span id="RC_CHANNELS_SCALED_chan1_scaled">---</span></div>
+						<div class="param-row"><label>RC Ch 2 Raw:</label> <span id="RC_CHANNELS_SCALED_chan2_scaled">---</span></div>
+						<div class="param-row"><label>RC Ch 3 Raw:</label> <span id="RC_CHANNELS_SCALED_chan3_scaled">---</span></div>
+						<div class="param-row"><label>RC Ch 4 Raw:</label> <span id="RC_CHANNELS_SCALED_chan4_scaled">---</span></div>
+						<div class="param-row"><label>RC Ch 5 Raw:</label> <span id="RC_CHANNELS_SCALED_chan5_scaled">---</span></div>
+						<div class="param-row"><label>RC Ch 6 Raw:</label> <span id="RC_CHANNELS_SCALED_chan6_scaled">---</span></div>
+						<div class="param-row"><label>RC Ch 7 Raw:</label> <span id="RC_CHANNELS_SCALED_chan7_scaled">---</span></div>
+						<div class="param-row"><label>RC Ch 8 Raw:</label> <span id="RC_CHANNELS_SCALED_chan8_scaled">---</span></div>
+						<div class="param-row"><label>RC RSSI:</label> <span     id="RC_CHANNELS_SCALED_rssi">---</span></div>
+						<div class="param-row"><label>RC Port:</label> <span     id="RC_CHANNELS_SCALED_port">---</span></div>							
+						<hr>
+						<div class="param-row"><label>Servo 1 Raw:</label> <span id="SERVO_OUTPUT_RAW_servo1_raw">---</span></div>
+						<div class="param-row"><label>Servo 2 Raw:</label> <span id="SERVO_OUTPUT_RAW_servo2_raw">---</span></div>
+						<div class="param-row"><label>Servo 3 Raw:</label> <span id="SERVO_OUTPUT_RAW_servo3_raw">---</span></div>
+						<div class="param-row"><label>Servo 4 Raw:</label> <span id="SERVO_OUTPUT_RAW_servo4_raw">---</span></div>
+						<div class="param-row"><label>Servo 5 Raw:</label> <span id="SERVO_OUTPUT_RAW_servo5_raw">---</span></div>
+						<div class="param-row"><label>Servo 6 Raw:</label> <span id="SERVO_OUTPUT_RAW_servo6_raw">---</span></div>
+						<div class="param-row"><label>Servo 7 Raw:</label> <span id="SERVO_OUTPUT_RAW_servo7_raw">---</span></div>
+						<div class="param-row"><label>Servo 8 Raw:</label> <span id="SERVO_OUTPUT_RAW_servo8_raw">---</span></div>
+						<div class="param-row"><label>Servo Port:</label> <span id="SERVO_OUTPUT_RAW_port">---</span></div>							
+						
+						<div  > <button onclick="mavlinkRC()"  class="buttonUpdate"  >Update</button> </div>
+						<script> 
+						function mavlinkRC() {
+													const paramDict = { 
+																		RC_CHANNELS_SCALED:["port","rssi","chan1_scaled","chan2_scaled","chan3_scaled","chan4_scaled","chan5_scaled","chan6_scaled","chan7_scaled","chan8_scaled"],
+																		SERVO_OUTPUT_RAW:["port","servo1_raw","servo2_raw","servo3_raw","servo4_raw","servo5_raw","servo6_raw","servo7_raw","servo8_raw"]
+																		};														
+													//console.log('Parameters to send:', paramDict);	
+													if (state.websocket.readyState === WebSocket.OPEN){ state.websocket.send(JSON.stringify(paramDict)); 
+														document.getElementById('last-ws-sent').textContent = JSON.stringify(paramDict, null, 2);	}												
+												}							
+						</script>
+					</div>
+					<div id="tab-mission" class="tab-pane">
+						<h2>Mission & Commands</h2>
+						<div class="param-row"><label>Current Waypoint Seq:</label> <span id="MISSION_CURRENT_seq">---</span></div>                             
+						<div class="param-row"><label>Last Command ACK:</label> <span id="COMMAND_ACK_command">---</span></div>
+						<div class="param-row"><label>Last Command Result:</label> <span id="COMMAND_ACK_result_str">---</span> (<span id="COMMAND_ACK_result">---</span>)</div>
+						<div  > <button onclick="requestAllParameters()"  class="buttonUpdate"  >Request All Parameters</button> </div>
+						<div id="parameter-tables" style="margin: 20px;"></div>
+					</div>
+					<div id="tab-estimator" class="tab-pane">
+						<h2>Estimator Status (EKF)</h2>
+						<div class="param-row"><label>Flags:</label> <span id="ESTIMATOR_STATUS_flags">---</span></div>
+						<div class="param-row"><label>Vel Variance:</label> <span id="ESTIMATOR_STATUS_vel_ratio">---</span></div>
+						<div class="param-row"><label>Pos Horiz Variance:</label> <span id="ESTIMATOR_STATUS_pos_horiz_ratio">---</span></div>
+						<div class="param-row"><label>Pos Vert Variance:</label> <span id="ESTIMATOR_STATUS_pos_vert_ratio">---</span></div>
+						<div class="param-row"><label>Mag Variance:</label> <span id="ESTIMATOR_STATUS_mag_ratio">---</span></div>
+						<div class="param-row"><label>HAGL Variance:</label> <span id="ESTIMATOR_STATUS_hagl_ratio">---</span></div>
+						<div class="param-row"><label>TAS Variance:</label> <span id="ESTIMATOR_STATUS_tas_ratio">---</span></div>
+						<div class="param-row"><label>Pos Horiz Accuracy:</label> <span id="ESTIMATOR_STATUS_pos_horiz_accuracy">---</span></div>
+						<div class="param-row"><label>Pos Vert Accuracy:</label> <span id="ESTIMATOR_STATUS_pos_vert_accuracy">---</span></div>
+					</div>
+					<div id="tab-status-text" class="tab-pane">
+						<!-- NEW: Monitor section -->
+						<div class="monitor-section">
+							<h3>WebSocket Monitor</h3>
+							<div><strong>📤 Last sent to server:</strong></div>
+							<pre id="last-ws-sent" style="background:#1e1e1e; color:#0f0; padding:6px; border-radius:4px; overflow-x:auto; font-size:12px;"></pre>
+							<label style="margin-top:10px; display:inline-block;">
+								<input type="checkbox" id="log-incoming-mavlink"> ✅ Log incoming MAVLink messages
+							</label>
+							<div><strong>📥 Incoming MAVLink log:</strong></div>
+							<textarea id="incoming-mavlink-log" rows="12" style="width:100%; font-family:monospace; background:#1e1e1e; color:#0f0; resize:vertical;" readonly placeholder="MAVLink messages will appear here..."></textarea>
+						</div>
+
+						<!-- Original status text log (keep it) -->
+						<h2>Status Text Log</h2>
+						<textarea id="status-text-log" rows="20" style="width:100%; resize:vertical; background:#1e1e1e; color:#0f0;" readonly></textarea>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<!----------------------------------------------------content-area--------------------------------------->
+
+<footer>
+	<div >
+	<span id="system_status"	></span>	
+	</div>
+</footer>
+
+<!--                    right click menu on  main area                                  -->
+
+<div id="main-context-menu" class="context-menu" data-for="main">
+	<ul>
+		<li data-action="tWebcam">Toggle Webcam</li>
+		<li data-action="tHUD">Toggle HUD</li>
+		<li data-action="tInfo">Toggle Info</li>
+	</ul>
+</div>
+
+
+<!--                        right click menu on  map area                   -->
+
+<div      id="map-context-menu" class="context-menu" data-for="map">
+	<ul>
+		<li data-action="set-main" data-section="map">Set as Main</li>
+		<li data-action="onlineMap">Set Online Map</li>
+		<li data-action="go-home">Go Home</li> <!-- Add Go Home option -->
+		<li data-action="zoom-in">Zoom In</li>
+		<li data-action="zoom-out">Zoom Out</li>
+		<li data-action="Load-Mission">Load Mission</li>		
+		<li data-action="Hide-Mission">Hide Mission</li>
+		<li data-action="Fly-here">Fly here</li>
+		<li data-action="Land-here">Land here</li>
+		<li data-action="Hower-Hear">Hower Hear</li>
+		<li data-action="Add-Point">Add Point</li>
+		<li data-action="Delete-Point">Delete Point</li>
+		<li data-action="Clear-Point">Clear Point</li>
+		
+	</ul>
+</div>
+
+<!--                        right click menu on  gage area                   -->
+
+<div   id="status-context-menu" class="context-menu" data-for="status">
+	<ul>
+		<li data-action="refresh">Refresh</li>
+		<li data-action="update">Update Status</li>
+		<li data-action="set-main" data-section="status">Set as Main</li>
+	</ul>
+</div>
+
+
+
+<div id="map-tabs-context-menu" class="context-menu" data-for="map-tabs">
+	<ul>
+		<li data-action="refresh">Refresh</li>
+		<li data-action="reset">Reset Settings</li>
+		<li data-action="set-main" data-section="map">Set as Main</li>
+	</ul>
+</div>
+
+
+
+<div id="popup-message" class="popup-message"></div>
+
+
+
+<div id="autopilot-layer" class="layer-box" style="display: none;">
+   
+    <div class="layer-content">
+        <canvas id="avatar-canvas"></canvas>
+    </div>
+	<div class="layer-header">
+         
+        <button id="close-layer-btn" class="close-btn">×</button>
+    </div>
+</div>
+
+
+
+
+<script src="drone_diagnostics.js"></script>
+<script src="./utility.js"></script>
+<script src="./map.js"></script>
+<script src="./ai.js"></script>
+<script src="./ws.js"></script>
+<script src="./jscode.js"></script>
+<script src="./camera_ui.js"></script>
+<script src="./three.min.js"></script>
+<script src="./GLTFLoader.js"></script>
+
+
+</body>
+</html>
