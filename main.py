@@ -61,7 +61,11 @@ camera_node  = CameraNode(
                             layout              =config.camera_layout,
                             composite_width     =config.composite_width,
                             composite_height    =config.composite_height,
-                            layout_main_ratio   =config.layout_main_ratio,   
+                            layout_main_ratio   =config.layout_main_ratio,  
+                            detection_frame_skip=config.detection_frame_skip,
+                            detection_confidence=config.detection_confidence,
+                            detection_max_concurrent=config.detection_max_concurrent,
+                            detection_enabled=config.yolo_detection_enabled,   # <-- add this 
                         )
 if config.yolo_detection_enabled and config.ai_advisor_enabled is False:
     # Only pre-load YOLO if user explicitly enabled it without AI advisor

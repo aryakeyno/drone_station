@@ -282,6 +282,7 @@ def _build_window( ports: list[str], cameras: list[int], joysticks: list[str], m
         [sg.Text( "Select your hardware level to auto-tune detection parameters:", background_color=BG, text_color=TEXT_DIM, font=("Helvetica", 9), )],
         [lbl("Hardware Level:")],
         [sg.Combo( hardware_levels, default_value=default_hw, key="-HARDWARE-LEVEL-", readonly=True, size=(50, 1), background_color=BG2, text_color=TEXT, enable_events=True, )],
+        [sg.Checkbox("Enable YOLO Detection", default=False, key="-YOLO-ENABLED-", background_color=BG, text_color=ACCENT, tooltip="Load YOLO model and start object detection (adds boot delay if enabled)")],
         [lbl("Recommended Model:", dim=True)],
         [sg.Text( f"(Will be auto-selected based on hardware)", background_color=BG, text_color=TEXT_DIM, font=("Helvetica", 8), key="-HW-RECOMMENDED-MODEL-", )],
         [lbl("Expected Performance:", dim=True)],
@@ -294,7 +295,7 @@ def _build_window( ports: list[str], cameras: list[int], joysticks: list[str], m
     features_frame = frame("🤖 Optional AI Features (Heavy Models)", [
         [sg.Text( "Select which features to load (can add/remove later):", background_color=BG, text_color=TEXT_DIM, font=("Helvetica", 9), )],
         [sg.Checkbox( "🎤 Voice Commands (Whisper STT + Mistral Intent)", default=False, key="-VOICE-ENABLED-", background_color=BG, text_color=TEXT, tooltip="Speech-to-text + intent parsing. Requires microphone + Mistral LLM.", )],
-        [sg.Checkbox( "👁️  Wake Word Detection (openwakeword)", default=False, key="-WAKE-ENABLED-", background_color=BG, text_color=TEXT, tooltip="'Hey Station' wake word detection. Requires voice models (~4 MB).", )],
+        [sg.Checkbox( "👁️ Wake Word Detection (openwakeword)", default=False, key="-WAKE-ENABLED-", background_color=BG, text_color=TEXT, tooltip="'Hey Station' wake word detection. Requires voice models (~4 MB).", )],
         [sg.Checkbox( "🤓 AI Advisor (Ollama/Mistral)", default=False, key="-AI-ADVISOR-ENABLED-", background_color=BG, text_color=TEXT, tooltip="AI guidance for flight. Requires LLM (Ollama/Mistral).", )],
     ])
 
@@ -514,7 +515,7 @@ def launch_config_gui() -> None:
             # ── Optional AI Features ──────────────────────────────────────
             config.voice_commands_enabled = values.get("-VOICE-ENABLED-", False)
             config.wake_word_enabled      = values.get("-WAKE-ENABLED-", False)
-            config.yolo_detection_enabled = True  # Now always set to True (separate from checkbox)
+            config.yolo_detection_enabled = values.get("-YOLO-ENABLED-", False) # Now always set to True (separate from checkbox)
             config.ai_advisor_enabled     = values.get("-AI-ADVISOR-ENABLED-", False)
             
             # ── Set selected detection model ───────────────────────────────

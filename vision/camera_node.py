@@ -211,6 +211,7 @@ class CameraNode:
         detection_frame_skip: int = 2,
         detection_confidence: float = 0.5,
         detection_max_concurrent: int = 1,
+        detection_enabled: bool = False,
     ):
         if camera_ids is not None:
             self._camera_ids: List[int] = list(camera_ids)
@@ -223,6 +224,7 @@ class CameraNode:
         self.enabled = enabled
         self.running = False
         self.ai_node = ai_node
+        
 
         # ── Layout & Composite Settings ────────────────────────────────────
         self.layout = layout
@@ -239,7 +241,7 @@ class CameraNode:
         self.frame_count: int = 0
 
         # ── Detection Settings ─────────────────────────────────────────────
-        self.detection_enabled = False
+        self.detection_enabled = detection_enabled
         self.detection_confidence = detection_confidence
         self.per_camera_detection: Dict[int, bool] = {cid: False for cid in self._camera_ids}
 

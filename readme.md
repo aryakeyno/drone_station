@@ -669,37 +669,32 @@ The GUI writes to the global `config` singleton on **START**. The main process t
 
 ```
 drone_station/
-├── main.py                      # Entry point — node init, lifespan, server start
-├── README.md                    # This file
+├── main.py                      # Entry point — initializes all nodes, launches FastAPI server
 ├── requirements.txt             # Python dependencies
 │
 ├── hardware/                    # Physical hardware interfaces
-│   ├── mavlink_node.py          # PX4 MAVLink communication
-│   ├── joystick_node.py         # USB gamepad — RC override + button routing
-│   └── __init__.py
+│   ├── mavlink_node.py          # PX4 MAVLink protocol — telemetry streaming, command execution
+│   └── joystick_node.py         # USB gamepad polling — 50 Hz RC override, button event routing
 │
-├── vision/                      # Camera and computer vision
-│   ├── camera_node.py           # Multi-camera capture, compositor, YOLO
-│   └── __init__.py
+├── vision/                      # Camera capture & computer vision
+│   ├── camera_node.py           # Multi-camera capture (up to 4), composite layout synthesis, YOLO inference
+│   ├── detection_optimizer.py   # YOLO frame scheduling, FPS throttling, detection caching
+│   └── model_manager.py         # YOLOv8 model loader — yolov8n/s/m switching
 │
-├── ai/                          # AI / ML / audio
-│   ├── ai_node.py               # Local LLM flight advisor (Ollama)
-│   ├── voice_commander.py       # Offline voice command pipeline
-│   ├── audio_node.py            # TTS synthesis (edge-tts / Kokoro)
-│   └── __init__.py
+├── ai/                          # AI, LLM, voice, and audio
+│   ├── ai_node.py               # Rolling telemetry window + Ollama REST client — advice loop (10s interval)
+│   ├── voice_commander.py       # Offline voice pipeline — wake word (OpenWakeWord) → STT (faster-whisper) → intent → MAVLink
+│   └── audio_node.py            # TTS synthesis — edge-tts (online), Kokoro ONNX (offline), WebSocket delivery
 │
-├── server/                      # Web server
-│   ├── web_app.py               # FastAPI app — REST + WebSocket + MJPEG
-│   ├── socket_manager.py        # WebSocket manager, command router
-│   └── __init__.py
+├── server/                      # Web server & WebSocket
+│   ├── web_app.py               # FastAPI application — REST endpoints, MJPEG streams, static SPA serving
+│   └── socket_manager.py        # WebSocket connection pool, broadcast routing, command ACK handling
 │
 ├── config/                      # Configuration
-│   ├── settings.py              # AppConfig dataclass (singleton)
-│   └── __init__.py
+│   └── settings.py              # AppConfig singleton — hardware ports, camera layout, AI feature flags
 │
-├── gui/                         # Desktop GUI
-│   ├── startup.py               # PySimpleGUI hardware selection window
-│   └── __init__.py
+├── gui/                         # Desktop UI
+│   └── startup.py               # PySimpleGUI window — COM port, camera selection, layout picker, joystick setup
 │
 ├── frontend/                    # Browser interface
 │   ├── index.html               # Main SPA — layout, sections, context menus
