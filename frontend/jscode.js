@@ -436,9 +436,13 @@ const sectionContents = {
 
 
 
+
 /**
- * Handle right-click context menu with proper DOM inspection
+ * Handle right-click context menu with proper layer piercing
+ * Uses document.elementsFromPoint() to pierce through HUD/Info layers
+ * and find the camera slot underneath
  */
+
 function handleContextMenu(e) {
     e.preventDefault();
     const sectionId = e.currentTarget.id;
@@ -449,66 +453,46 @@ function handleContextMenu(e) {
         return;
     }
 
-    // Hide all other menus
+    // Hide all other context menus
     document.querySelectorAll('.context-menu').forEach(m => {
         if (m !== menu) m.style.display = 'none';
     });
 
     // ════════════════════════════════════════════════════════════════════
-    // PROPER DOM INSPECTION to detect clicked camera
+    // GEOMETRIC HIT-TESTING (Bypasses pointer-events: none perfectly)
     // ════════════════════════════════════════════════════════════════════
-    
     let clickedCameraId = null;
-    let clickedElement = e.target;
     
-    // Try multiple selectors in order of specificity
-    const selectors = [
-        '.camera-slot',
-        '[data-cam-id]',
-        '[data-camera-id]',
-        '.camera-feed'
-    ];
-    
-    for (const selector of selectors) {
-        const element = clickedElement.closest(selector);
-        if (element) {
-            // Extract camera ID from multiple possible sources
-            const candidates = [
-                element.dataset.camId,
-                element.dataset.cameraId,
-                element.id?.replace('camera-slot-', ''),
-                element.id?.replace('camera-feed-', ''),
-                element.id?.replace('slot-', '')
-            ];
+    // Scan all camera slots to see if mouse coordinates are physically within their frame
+    const slots = document.querySelectorAll('.camera-slot');
+    for (const slot of slots) {
+        const rect = slot.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom) {
             
-            for (const candidate of candidates) {
-                if (candidate) {
-                    const parsed = parseInt(candidate, 10);
-                    if (!isNaN(parsed)) {
-                        clickedCameraId = parsed;
-                        break;
-                    }
+            if (slot.dataset.camId !== undefined) {
+                const parsed = parseInt(slot.dataset.camId, 10);
+                if (!isNaN(parsed)) {
+                    clickedCameraId = parsed;
+                    console.log(`✅ Found camera ${clickedCameraId} via Geometric Boundaries`);
+                    break; // Found the target slot, exit loop
                 }
             }
-            
-            if (clickedCameraId !== null) break;
         }
     }
     
-    // Store for other handlers
+    // Store globally for actions
     state.clickedCameraId = clickedCameraId;
     
     if (clickedCameraId !== null) {
         console.log(`🎯 RIGHT-CLICK ON CAMERA ${clickedCameraId}`);
-        console.log(`   Element: ${clickedElement.className}`);
     } else {
         console.log(`ℹ️  RIGHT-CLICK ON EMPTY AREA`);
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // MAP HANDLING (unchanged)
+    // MAP SECTION HANDLING
     // ════════════════════════════════════════════════════════════════════
-    
     if (sectionId === 'map-section' && state.map) {
         const pixel = state.map.getEventPixel(e);
         const coordinate = state.map.getCoordinateFromPixel(pixel);
@@ -516,51 +500,85 @@ function handleContextMenu(e) {
         state.contextMenuCoord = { lat: lonLat[1], lon: lonLat[0] };
 
         state.selectedWaypoint = null;
-        state.map.forEachFeatureAtPixel(pixel, (feature, layer) => {
-            if (feature.get('type') === 'waypoint' && layer === state.missionLayer) {
-                state.selectedWaypoint = feature;
-                return true;
+        state.map.forEachFeatureAtPixel(
+            pixel,
+            (feature, layer) => {
+                if (feature.get('type') === 'waypoint' && layer === state.missionLayer) {
+                    state.selectedWaypoint = feature;
+                    return true;
+                }
+            },
+            {
+                hitTolerance: 30,
+                layerFilter: (layer) => layer === state.missionLayer
             }
-        }, {
-            hitTolerance: 30,
-            layerFilter: (layer) => layer === state.missionLayer
-        });
+        );
     } else {
         state.contextMenuCoord = null;
         state.selectedWaypoint = null;
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // UPDATE MENU with clicked camera
+    // UPDATE MENU ITEMS WITH CLICKED CAMERA ID
     // ════════════════════════════════════════════════════════════════════
-    
-    if (typeof CameraUI?.updateMenuItems === 'function') {
+    if (typeof CameraUI !== 'undefined' && typeof CameraUI.updateMenuItems === 'function') {
         CameraUI.updateMenuItems(clickedCameraId);
+        console.log(`📋 Menu updated for camera: ${clickedCameraId !== null ? clickedCameraId : 'ALL'}`);
     } else {
-        console.warn('⚠️  CameraUI.updateMenuItems unavailable, updating generically');
-        updateContextMenus();
+        console.warn('⚠️ CameraUI.updateMenuItems not found. Running direct DOM fallback filter.');
+        // Inline fallback filter to guarantee items hide/show correctly
+        filterContextMenuItemsDirectly(menu, clickedCameraId);
     }
 
-    // Position menu
+    // ════════════════════════════════════════════════════════════════════
+    // POSITION CONTEXT MENU ON SCREEN
+    // ════════════════════════════════════════════════════════════════════
     menu.style.display = 'block';
     const menuRect = menu.getBoundingClientRect();
-    
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
     let top = e.clientY;
     let left = e.clientX;
-    
-    if (menuRect.bottom > window.innerHeight) {
+
+    if (menuRect.bottom > viewportHeight) {
         top = e.clientY - menuRect.height;
     }
-    if (menuRect.right > window.innerWidth) {
+    if (menuRect.right > viewportWidth) {
         left = e.clientX - menuRect.width;
     }
 
     menu.style.top = top + 'px';
     menu.style.left = left + 'px';
-    
-    console.log(`📍 Menu at (${left}, ${top})`);
+
+    console.log(`📍 Context menu positioned at (${left}, ${top})`);
 }
 
+/**
+ * Helper to ensure items filter correctly if they aren't fully exposed via CameraUI
+ */
+function filterContextMenuItemsDirectly(menu, clickedCameraId) {
+    const items = menu.querySelectorAll('li');
+    items.forEach(item => {
+        const action = item.dataset.action || '';
+        
+        if (clickedCameraId !== null) {
+            // If a specific camera was right-clicked, hide items meant for other cameras
+            if (action.includes('detection-') || action.includes('cam-')) {
+                if (action.endsWith(`-${clickedCameraId}`) || item.dataset.camId == clickedCameraId) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            } else {
+                item.style.display = 'block'; // Keep generic menu options visible
+            }
+        } else {
+            // Clicked on empty space: display everything
+            item.style.display = 'block';
+        }
+    });
+}
 
 
 // Wire the event listener to your main layout wrapper grid container

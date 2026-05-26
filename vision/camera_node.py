@@ -125,13 +125,50 @@ def _process_and_encode_all(
     """
     Bundles image composition and all JPEG conversions into a single function
     to run inside a thread worker, preventing loop blocking.
+    
+    IMPROVEMENT: Burns camera ID onto each frame for visual identification
     """
-    available = [raw_frames_snapshot[cid] for cid in camera_ids if raw_frames_snapshot.get(cid) is not None]
-    if not available:
+    import cv2
+    
+    annotated_frames_dict = {}
+    annotated_frames_list = []
+    
+    for cid in camera_ids:
+        raw = raw_frames_snapshot.get(cid)
+        if raw is not None:
+            # Copy the frame so we don't draw text over the original buffer used by YOLO
+            frame = raw.copy()
+            
+            # ─────────────────────────────────────────────────────────────
+            # BURN CAMERA ID ONTO FRAME
+            # ─────────────────────────────────────────────────────────────
+            
+            text = f"CAM {cid}"
+            
+            # Draw black background box for text readability
+            # Box at top-left: (x1, y1) to (x2, y2)
+            cv2.rectangle(frame, (5, 5), (140, 45), (0, 0, 0), -1)
+            
+            # Draw green text over the black box
+            cv2.putText(
+                frame, 
+                text, 
+                (15, 33),  # Text position (x, y)
+                cv2.FONT_HERSHEY_SIMPLEX,  # Font
+                1.0,  # Font scale
+                (0, 255, 0),  # BGR color: Green
+                2,  # Thickness
+                cv2.LINE_AA  # Anti-aliased
+            )
+            
+            annotated_frames_dict[cid] = frame
+            annotated_frames_list.append(frame)
+
+    if not annotated_frames_list:
         return None, {}
 
-    # 1. Tile Frames
-    composite = _compose(available, layout, comp_w, comp_h, main_ratio)
+    # 1. Tile Frames using the annotated images
+    composite = _compose(annotated_frames_list, layout, comp_w, comp_h, main_ratio)
     
     # 2. JPEG Encode Composite Frame
     comp_jpeg = None
@@ -140,18 +177,14 @@ def _process_and_encode_all(
         if ok:
             comp_jpeg = bytes(buf)
 
-    # 3. JPEG Encode Individual Streams
+    # 3. JPEG Encode Individual Streams (with camera ID burned in)
     indiv_jpegs = {}
-    for cid in camera_ids:
-        raw = raw_frames_snapshot.get(cid)
-        if raw is not None:
-            ok2, buf2 = cv2.imencode(".jpg", raw, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
-            if ok2:
-                indiv_jpegs[cid] = bytes(buf2)
+    for cid, frame in annotated_frames_dict.items():
+        ok2, buf2 = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+        if ok2:
+            indiv_jpegs[cid] = bytes(buf2)
 
     return comp_jpeg, indiv_jpegs
-
-
 # ---------------------------------------------------------------------------
 # CameraNode  (multi-camera, backwards-compatible API)
 # ---------------------------------------------------------------------------
