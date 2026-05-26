@@ -28,6 +28,7 @@ import time
 from collections import deque
 from typing import Dict, Optional, Tuple
 from threading import Lock
+import concurrent.futures
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -85,7 +86,7 @@ class DetectionOptimizer:
 
         # Processed frame cache (last result for each camera)
         self._processed_frames: Dict[int, np.ndarray] = {}
-
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         # Semaphore to limit concurrent inferences
         self._inference_semaphore = asyncio.Semaphore(max_concurrent_inferences)
 
@@ -255,9 +256,7 @@ class DetectionOptimizer:
         t0 = time.time()
         try:
             # Run inference in thread pool (YOLO can be CPU-heavy)
-            result_frame = await asyncio.to_thread(
-                self._inference_sync, frame
-            )
+            result_frame = await asyncio.get_running_loop().run_in_executor( self._executor, self._inference_sync, frame)
 
             # Store result
             self._processed_frames[cam_id] = result_frame

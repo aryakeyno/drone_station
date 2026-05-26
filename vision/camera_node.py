@@ -22,7 +22,7 @@ import logging
 import time
 from typing import Dict, List, Optional
 from collections import deque
-
+import concurrent.futures
 import numpy as np
 
 from vision.detection_optimizer import DetectionOptimizer
@@ -245,6 +245,7 @@ class CameraNode:
         self.detection_enabled = detection_enabled
         self.detection_confidence = detection_confidence
         self.per_camera_detection: Dict[int, bool] = {cid: False for cid in self._camera_ids}
+        self._detection_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
         # Initialize DetectionOptimizer (async queue-based system)
         # This does NOT load the model until explicitly requested

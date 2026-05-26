@@ -1,103 +1,845 @@
-asyncapi: "2.6.0"
+openapi: "3.1.0"
 info:
-  title: Detection Service API
+  title: "Drone Station — Ground Control System API"
   version: "2.0.0"
   description: |
-    Non-blocking async YOLO detection service for multi-camera vision systems.
+    Complete specification of the Drone Station GCS system.
     
-    This service accepts raw video frames via WebSocket, runs object detection
-    in background worker threads, and broadcasts detection results and telemetry.
+    Architecture:
+    - Async microservices (FastAPI + asyncio)
+    - WebSocket bidirectional communication
+    - HTTP unidirectional (video, snapshots)
+    - Stateful nodes with rolling telemetry windows
     
-    All frame queueing is non-blocking (< 1ms). Inference happens asynchronously
-    in background without blocking the client.
+    Target: AI systems, code generators, integrators
+    Format: OpenAPI 3.1 + custom extensions
   contact:
-    name: Vision Systems Team
-    email: ai-services@dronestation.local
+    name: "Drone Station Project"
+    email: "ai-services@dronestation.local"
+  x-architecture:
+    pattern: "distributed-async-microservices"
+    framework: "fastapi"
+    language: "python3.10+"
+    event-loop: "asyncio"
 
-defaultContentType: application/json
+servers:
+  - url: "http://localhost:8765"
+    description: "Local development server (default)"
 
-channels:
-  detection/frame/request:
-    description: Client sends a frame to the detection service for processing
-    publish:
-      message:
-        $ref: "#/components/messages/FrameQueueRequest"
-  
-  detection/frame/response:
-    description: Service acknowledges frame receipt and queue status
-    subscribe:
-      message:
-        $ref: "#/components/messages/FrameQueueResponse"
-  
-  detection/telemetry:
-    description: Service broadcasts detection telemetry every 5 seconds
-    subscribe:
-      message:
-        $ref: "#/components/messages/DetectionTelemetry"
-  
-  detection/results:
-    description: Service broadcasts detection results when objects are found
-    subscribe:
-      message:
-        $ref: "#/components/messages/DetectionResult"
-  
-  detection/events:
-    description: Service broadcasts service state change events
-    subscribe:
-      message:
-        $ref: "#/components/messages/ServiceEvent"
+paths:
+  /:
+    get:
+      summary: "Serve SPA root"
+      operationId: "serve_index"
+      responses:
+        "200":
+          description: "HTML5 single-page application"
+          content:
+            text/html:
+              schema:
+                type: string
 
-components:
-  messages:
-    FrameQueueRequest:
-      name: FrameQueueRequest
-      description: Client sends a raw video frame for detection processing
-      contentType: application/json
-      payload:
-        type: object
-        required: [camera_id, frame_bytes, frame_height, frame_width]
-        properties:
-          camera_id:
+  /ws:
+    get:
+      summary: "WebSocket endpoint for real-time communication"
+      operationId: "websocket_connect"
+      description: |
+        Bidirectional WebSocket for telemetry, commands, and events.
+        All messages are JSON objects with a "class" field for routing.
+      responses:
+        "101":
+          description: "WebSocket upgrade successful"
+
+  /video:
+    get:
+      summary: "Composite MJPEG stream"
+      operationId: "get_video_composite"
+      parameters:
+        - name: quality
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 80
+          description: "JPEG quality (1-100)"
+      responses:
+        "200":
+          description: "Composite MJPEG stream (all cameras merged)"
+          content:
+            video/x-motion-jpeg:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: "No cameras configured"
+
+  /video/{cam_id}:
+    get:
+      summary: "Per-camera MJPEG stream"
+      operationId: "get_video_camera"
+      parameters:
+        - name: cam_id
+          in: path
+          required: true
+          schema:
             type: integer
             minimum: 0
             maximum: 3
-            example: 0
-          frame_bytes:
-            type: string
-            format: base64
-            description: "Raw BGR uint8 frame data"
-          frame_height:
+      responses:
+        "200":
+          description: "MJPEG stream for specified camera"
+          content:
+            video/x-motion-jpeg:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: "Camera not found or not active"
+
+  /api/camera/frame:
+    get:
+      summary: "Composite JPEG snapshot"
+      operationId: "get_camera_frame_composite"
+      responses:
+        "200":
+          description: "Single composite JPEG frame"
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+
+  /api/camera/frame/{cam_id}:
+    get:
+      summary: "Per-camera JPEG snapshot"
+      operationId: "get_camera_frame"
+      parameters:
+        - name: cam_id
+          in: path
+          required: true
+          schema:
             type: integer
-            minimum: 120
-            maximum: 2160
-            example: 720
-          frame_width:
+      responses:
+        "200":
+          description: "Single JPEG frame from specified camera"
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+
+  /api/camera/info:
+    get:
+      summary: "Camera configuration and status"
+      operationId: "get_camera_info"
+      responses:
+        "200":
+          description: "Camera info"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CameraInfo"
+
+  /api/mavlink/status:
+    get:
+      summary: "MAVLink connection status"
+      operationId: "get_mavlink_status"
+      responses:
+        "200":
+          description: "Connection status"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MavlinkStatus"
+
+  /api/health:
+    get:
+      summary: "Server health check"
+      operationId: "get_health"
+      responses:
+        "200":
+          description: "Server is healthy"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: ["ok", "degraded", "error"]
+                  timestamp:
+                    type: number
+                    format: double
+
+components:
+  schemas:
+    # ========================================================================
+    # CONFIGURATION
+    # ========================================================================
+    AppConfig:
+      type: object
+      description: "Application configuration (from startup GUI and config/settings.py)"
+      properties:
+        # Hardware
+        com_port:
+          type: string
+          example: "COM3"
+        baud_rate:
+          type: integer
+          example: 115200
+        joystick_id:
+          type: integer
+          minimum: 0
+          maximum: 3
+          example: 0
+        # Camera
+        camera_ids:
+          type: array
+          items:
             type: integer
-            minimum: 160
-            maximum: 3840
-            example: 1280
-          frame_dtype:
-            type: string
-            enum: ["uint8"]
-            default: "uint8"
-          timestamp:
+            minimum: 0
+            maximum: 3
+          example: [0, 1]
+        camera_enabled:
+          type: boolean
+          example: true
+        camera_layout:
+          type: string
+          enum:
+            - "single"
+            - "side_by_side"
+            - "top_bottom"
+            - "three_left_main"
+            - "three_right_main"
+            - "three_top_main"
+            - "grid_2x2"
+          example: "side_by_side"
+        layout_main_ratio:
+          type: number
+          minimum: 0.3
+          maximum: 0.9
+          example: 0.65
+        composite_width:
+          type: integer
+          example: 1280
+        composite_height:
+          type: integer
+          example: 720
+        # Detection
+        yolo_model_path:
+          type: string
+          example: "models/yolov8n.pt"
+        yolo_detection_enabled:
+          type: boolean
+          example: false
+        # AI
+        ai_advisor_enabled:
+          type: boolean
+          example: true
+        voice_commands_enabled:
+          type: boolean
+          example: true
+        wake_word_enabled:
+          type: boolean
+          example: true
+        # Server
+        websocket_port:
+          type: integer
+          example: 8765
+        # UI
+        ui_theme:
+          type: string
+          enum: ["dark", "light"]
+          example: "dark"
+      required:
+        - com_port
+        - baud_rate
+        - camera_ids
+        - camera_layout
+
+    # ========================================================================
+    # TELEMETRY & STATE
+    # ========================================================================
+    MavlinkStatus:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        com_port:
+          type: string
+        baud_rate:
+          type: integer
+        last_heartbeat:
+          type: number
+          format: double
+          description: "Unix timestamp (seconds)"
+        system_id:
+          type: integer
+        component_id:
+          type: integer
+
+    TelemetrySnapshot:
+      type: object
+      description: "Current drone telemetry state (from MAVLink heartbeat + messages)"
+      properties:
+        # Flight status
+        armed:
+          type: boolean
+        system_status:
+          type: integer
+          description: "MAV_STATE enum"
+        mode:
+          type: string
+          example: "STABILIZE"
+        # Battery
+        battery_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+        battery_voltage:
+          type: number
+          format: float
+          example: 11.8
+        battery_current:
+          type: number
+          format: float
+          example: 5.2
+        # GPS
+        gps_fix:
+          type: integer
+          description: "0=no fix, 2=2D, 3=3D"
+        satellites:
+          type: integer
+          minimum: 0
+        # Position
+        lat:
+          type: number
+          format: double
+          example: 37.7749
+        lon:
+          type: number
+          format: double
+          example: -122.4194
+        altitude:
+          type: number
+          format: float
+          description: "meters above sea level"
+        relative_altitude:
+          type: number
+          format: float
+          description: "meters above home"
+        # Attitude (Euler angles)
+        roll:
+          type: number
+          format: float
+          description: "radians"
+        pitch:
+          type: number
+          format: float
+          description: "radians"
+        yaw:
+          type: number
+          format: float
+          description: "radians"
+        # Velocity
+        velocity:
+          type: number
+          format: float
+          description: "m/s"
+        vx:
+          type: number
+          format: float
+          description: "m/s (north)"
+        vy:
+          type: number
+          format: float
+          description: "m/s (east)"
+        vz:
+          type: number
+          format: float
+          description: "m/s (down)"
+        # System
+        connected:
+          type: boolean
+        timestamp:
+          type: number
+          format: double
+          description: "Unix timestamp (seconds)"
+
+    CameraInfo:
+      type: object
+      properties:
+        active_cameras:
+          type: array
+          items:
             type: integer
-            description: Client capture timestamp (Unix ms)
-          request_id:
-            type: string
-            description: Unique request identifier for correlation
-    
-    FrameQueueResponse:
-      name: FrameQueueResponse
-      description: Service response to frame queue request
-      contentType: application/json
-      payload:
-        type: object
-        required: [queued, reason]
-        properties:
-          queued:
+          example: [0, 1]
+        layout:
+          type: string
+          example: "side_by_side"
+        composite_resolution:
+          type: object
+          properties:
+            width:
+              type: integer
+            height:
+              type: integer
+        detection_enabled:
+          type: boolean
+        per_camera_detection:
+          type: object
+          additionalProperties:
             type: boolean
-            description: Was frame accepted for processing?
+        framerate:
+          type: number
+          example: 30.5
+
+    # ========================================================================
+    # AI & VISION
+    # ========================================================================
+    DetectionResult:
+      type: object
+      description: "YOLO detection result (per object)"
+      properties:
+        class_id:
+          type: integer
+          example: 0
+        class_name:
+          type: string
+          example: "person"
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.95
+        bbox:
+          type: array
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
+          description: "[x1, y1, x2, y2] normalized 0-1"
+        camera_id:
+          type: integer
+        timestamp:
+          type: number
+          format: double
+
+    AIAdvice:
+      type: object
+      description: "Advice from AI advisor (LLM-generated, schema-validated)"
+      properties:
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: "1-3=info, 4-6=advisory, 7-9=warning, 10=critical"
+        advice:
+          type: string
+          maxLength: 100
+          example: "GPS accuracy degraded — consider returning to launch"
+        detail:
+          type: string
+          example: "Satellites dropped from 14 to 6 in last 30 seconds"
+        alert:
+          type: boolean
+          description: "Trigger UI popup if true"
+        source:
+          type: string
+          enum: ["advisor", "user_question"]
+
+    VoiceIntent:
+      type: object
+      description: "Parsed voice command intent"
+      properties:
+        intent:
+          type: string
+          enum:
+            - "arm"
+            - "disarm"
+            - "takeoff"
+            - "land"
+            - "goto"
+            - "rtl"
+            - "hold"
+            - "unknown"
+        params:
+          type: object
+          properties:
+            altitude:
+              type: number
+              description: "meters"
+            lat:
+              type: number
+              format: double
+            lon:
+              type: number
+              format: double
+            direction:
+              type: string
+              enum: ["north", "south", "east", "west"]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        requires_confirm:
+          type: boolean
+        transcript:
+          type: string
+          description: "Original user speech"
+
+    # ========================================================================
+    # WEBSOCKET MESSAGES
+    # ========================================================================
+    WebSocketMessage:
+      type: object
+      discriminator:
+        propertyName: class
+      oneOf:
+        - $ref: "#/components/schemas/WSMessage_Heartbeat"
+        - $ref: "#/components/schemas/WSMessage_ToggleDetection"
+        - $ref: "#/components/schemas/WSMessage_AIAdvice"
+        - $ref: "#/components/schemas/WSMessage_TTSAudio"
+        - $ref: "#/components/schemas/WSMessage_VoiceTranscript"
+        - $ref: "#/components/schemas/WSMessage_CameraUpdate"
+        - $ref: "#/components/schemas/WSMessage_Error"
+
+    WSMessage_Heartbeat:
+      type: object
+      properties:
+        class:
+          const: "HEARTBEAT"
+        armed:
+          type: boolean
+        mode:
+          type: string
+        battery_percent:
+          type: number
+
+    WSMessage_ToggleDetection:
+      type: object
+      properties:
+        class:
+          const: "toggle_detection"
+        camera_id:
+          type: integer
+          nullable: true
+          description: "null for all cameras"
+        enable:
+          type: boolean
+
+    WSMessage_AIAdvice:
+      type: object
+      properties:
+        class:
+          const: "ai_advice"
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+        advice:
+          type: string
+        detail:
+          type: string
+        alert:
+          type: boolean
+
+    WSMessage_TTSAudio:
+      type: object
+      properties:
+        class:
+          const: "tts_audio"
+        text:
+          type: string
+        audio:
+          type: string
+          format: byte
+          description: "Base64-encoded MP3 or WAV"
+        loop:
+          type: boolean
+
+    WSMessage_VoiceTranscript:
+      type: object
+      properties:
+        class:
+          const: "voice_transcript"
+        text:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    WSMessage_CameraUpdate:
+      type: object
+      properties:
+        class:
+          const: "camera_detection_update"
+        camera_id:
+          type: integer
+          nullable: true
+        detection_enabled:
+          type: boolean
+
+    WSMessage_Error:
+      type: object
+      properties:
+        class:
+          const: "error"
+        message:
+          type: string
+        code:
+          type: string
+
+  # ========================================================================
+  # REUSABLE PARAMETERS
+  # ========================================================================
+  parameters:
+    camera_id:
+      name: cam_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 3
+
+  # ========================================================================
+  # REQUEST/RESPONSE BODIES
+  # ========================================================================
+  requestBodies:
+    ToggleDetectionRequest:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              toggle_detection:
+                type: boolean
+              camera_id:
+                type: integer
+                nullable: true
+
+    AskAIRequest:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ask_ai:
+                type: string
+                example: "is it safe to fly?"
+
+  responses:
+    NotFound:
+      description: "Resource not found"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+    ServerError:
+      description: "Internal server error"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+# ============================================================================
+# CUSTOM X-EXTENSIONS FOR AI SYSTEMS
+# ============================================================================
+x-nodes:
+  MavlinkNode:
+    file: "hardware/mavlink_node.py"
+    class: "MavlinkNode"
+    init:
+      - name: com_port
+        type: string
+      - name: baud_rate
+        type: integer
+      - name: ws_manager
+        type: "ConnectionManager"
+    methods:
+      connect: "async () → None"
+      send_command_long: "async (target_system, command, params) → bool"
+      get_telemetry_snapshot: "() → dict"
+    publishes:
+      - "HEARTBEAT (1 Hz)"
+      - "SYS_STATUS (1 Hz)"
+      - "ATTITUDE (30 Hz)"
+      - "GLOBAL_POSITION_INT (1 Hz)"
+      - "BATTERY_STATUS (1 Hz)"
+      - "VFR_HUD (5 Hz)"
+      - "(20+ more types, rate-limited)"
+    error_recovery: "auto-reconnect every 5s on disconnect"
+
+  CameraNode:
+    file: "vision/camera_node.py"
+    class: "CameraNode"
+    init:
+      - name: camera_ids
+        type: "list[int]"
+      - name: layout
+        type: string
+      - name: ai_node
+      - name: ws_manager
+      - name: detection_optimizer
+    methods:
+      capture_loop: "async (cam_id: int) → None"
+      compositor_loop: "async () → None"
+      toggle_detection: "(enable: bool, camera_id: int = None) → None"
+      get_camera_info: "() → dict"
+    publishes:
+      - "camera_frame_available (30 Hz composite)"
+      - "MJPEG streams (/video, /video/<cam_id>)"
+    endpoints:
+      - "GET /video"
+      - "GET /video/{cam_id}"
+      - "GET /api/camera/frame"
+      - "GET /api/camera/frame/{cam_id}"
+
+  JoystickNode:
+    file: "hardware/joystick_node.py"
+    class: "JoystickNode"
+    init:
+      - name: joystick_id
+        type: integer
+      - name: ws_manager
+      - name: mavlink_node
+    methods:
+      poll_loop: "async () → None"
+    parameters:
+      poll_rate: "50 Hz"
+      deadzone: "0.05"
+      debounce: "0.2s"
+    rc_channels:
+      "0": "Roll (1000-2000 PWM)"
+      "1": "Pitch (1000-2000 PWM)"
+      "2": "Throttle (1000-2000 PWM)"
+      "3": "Yaw (1000-2000 PWM)"
+
+  AINode:
+    file: "ai/ai_node.py"
+    class: "AINode"
+    init:
+      - name: mavlink_node
+      - name: camera_node
+      - name: ws_manager
+    methods:
+      advisor_loop: "async () → None"
+      ingest_telemetry: "(data: dict) → None"
+      ingest_detections: "(detections: list[dict]) → None"
+      ask_question: "async (question: str) → dict"
+    publishes:
+      - "ai_advice (every 10s or on-demand)"
+    external_services:
+      - name: "Ollama"
+        endpoint: "http://localhost:11434/api/generate"
+        models: ["mistral:instruct", "phi3:mini"]
+    telemetry_window:
+      max_entries: 30
+      retention: "~3 seconds"
+
+  VoiceCommander:
+    file: "ai/voice_commander.py"
+    class: "VoiceCommander"
+    pipeline:
+      - stage: "Wake Word Detection"
+        model: "OpenWakeWord"
+        latency: "~50ms"
+        threshold: 0.5
+      - stage: "Speech-to-Text"
+        model: "faster-whisper small.en"
+        latency: "~1-2s (CPU), ~0.3s (GPU)"
+      - stage: "Intent Classification"
+        model: "Ollama (temperature 0.1)"
+        latency: "~1s"
+      - stage: "Safety Gate"
+        checks: ["GPS ≥ 3D", "Battery > 20%", "Drone connected"]
+      - stage: "Execution"
+        high_risk_intents: ["arm", "takeoff", "goto"]
+        low_risk_intents: ["land", "rtl", "disarm", "hold"]
+
+  AIAudioNode:
+    file: "ai/audio_node.py"
+    class: "AIAudioNode"
+    tts_chain:
+      - provider: "Edge Browser"
+        voices: ["Aria Online", "Jenny Online", "Guy Online"]
+        latency: "~0.5s"
+      - provider: "edge-tts (server)"
+        requires: "internet"
+        latency: "~1-2s"
+      - provider: "Kokoro-82M ONNX (offline)"
+        requires: "ONNX model files (300 MB)"
+        latency: "~0.3-0.5s"
+    speech_queue:
+      max_size: 100
+      priority_levels: 1-10
+      dedup_window: "5s"
+      sorting: "highest priority first"
+
+  ConnectionManager:
+    file: "server/socket_manager.py"
+    class: "ConnectionManager"
+    methods:
+      broadcast: "async (message: dict) → None"
+      handle_incoming_command: "async (...) → None"
+    broadcast_strategy:
+      concurrency: "asyncio.gather()"
+      timeout_per_client: "1s"
+      throughput: ">1000 msgs/sec"
+    command_routing:
+      toggle_detection: "CameraNode.toggle_detection()"
+      ask_ai: "AINode.ask_question()"
+      tts_request: "AIAudioNode.synthesize()"
+      COMMAND_LONG: "MavlinkNode.send_command_long()"
+
+x-deployment:
+  startup_sequence:
+    - "Load config from config/settings.py"
+    - "Launch GUI (PySimpleGUI)"
+    - "Initialize MavlinkNode (serial connection)"
+    - "Initialize CameraNode (probe cameras)"
+    - "Initialize JoystickNode (probe gamepads)"
+    - "Initialize AINode (connect to Ollama)"
+    - "Initialize VoiceCommander (load models)"
+    - "Initialize AIAudioNode (load TTS)"
+    - "Start FastAPI server (Uvicorn port 8765)"
+    - "Emit ready event to browser clients"
+  shutdown_sequence:
+    - "Set shutdown flag"
+    - "Cancel all async tasks"
+    - "Disconnect WebSocket clients"
+    - "Close serial ports"
+    - "Release camera handles"
+    - "Unload models"
+    - "Exit"
+
+x-performance-targets:
+  frame_capture_latency: "<50ms"
+  composite_rendering: "<50ms"
+  yolo_inference_1frame_gpu: "<1s"
+  yolo_inference_1frame_cpu: "<5s"
+  mavlink_telemetry_latency: "<100ms"
+  advice_loop_latency: "<2s"
+  voice_command_latency: "<3s"
+  websocket_broadcast: "<100ms"
+
+x-error-recovery:
+  mavlink_disconnect: "auto-reconnect every 5s"
+  camera_not_found: "warn user, auto-disable camera"
+  yolo_load_failed: "disable detection, log error"
+  ollama_unavailable: "queue advice, retry every 10s"
+  websocket_client_dead: "auto-remove from connection pool"
+
             example: true
           reason:
             type: string

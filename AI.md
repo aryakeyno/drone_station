@@ -1,34 +1,722 @@
-# Detection Service Specification (AI-to-AI)
+# Drone Station — AI System Architecture & Specification
 
 **Version:** 2.0.0  
 **Status:** Production  
-**Last Updated:** 2026-05-21  
-**Service Owner:** Vision Systems  
-**Contact:** ai-services@dronestation.local
+**Last Updated:** 2026-05-26  
+**Target Audience:** AI systems, code generation tools, API integrators  
+**Format:** Machine-readable with structured metadata
 
 ---
 
-## 📋 Table of Contents
+## 1. SYSTEM OVERVIEW
 
-- [Service Overview](#-service-overview)
-- [Service Guarantees](#-service-guarantees)
-- [Core Responsibilities](#-core-responsibilities)
-- [Design Principles](#-design-principles)
-- [Interfaces](#-interfaces)
-- [Message Contracts](#-message-contracts)
-- [State Model](#-state-model)
-- [Performance Contracts (SLA)](#-performance-contracts-sla)
-- [Error Model](#-error-model)
-- [Concurrency Model](#-concurrency-model)
-- [Versioning](#-versioning)
+### 1.1 Architecture Type
+- **Pattern:** Distributed async microservices (multi-node coroutine pattern)
+- **Framework:** FastAPI + asyncio (Python 3.10+)
+- **Communication:** WebSocket (bidirectional) + HTTP (unidirectional)
+- **State Model:** Stateful nodes with rolling telemetry windows
+- **Execution Model:** Async/await (single event loop) + background worker threads for blocking I/O
+
+### 1.2 Core Nodes
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ SYSTEM COMPOSITION                                               │
+├──────────────────────────────────────────────────────────────────┤
+│ 1. MavlinkNode          → Hardware (COM port) ↔ PX4 telemetry   │
+│ 2. CameraNode           → Hardware (USB cameras) ↔ Vision        │
+│ 3. JoystickNode         → Hardware (USB joystick) ↔ RC override  │
+│ 4. AINode               → Ollama REST ↔ LLM inference            │
+│ 5. VoiceCommander       → Microphone ↔ STT/intent/command       │
+│ 6. AIAudioNode          → TTS synthesis ↔ Speaker               │
+│ 7. ConnectionManager    → WebSocket pool ↔ Browser clients      │
+│ 8. FastAPI App          → HTTP/WebSocket router                 │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 1.3 Data Flow Topology
+```
+Inputs (External):
+  - Serial MAVLink (drone telemetry/commands)
+  - USB cameras (video frames)
+  - USB joystick (RC input)
+  - Microphone (voice input)
+  - Browser WebSocket (UI commands)
+
+Processing:
+  - CameraNode: frame capture + YOLO detection + composition
+  - MavlinkNode: telemetry parsing + command execution
+  - AINode: rolling window analysis + Ollama LLM queries
+  - VoiceCommander: wake word + STT + intent classification
+  - JoystickNode: input polling + RC override mapping
+
+Outputs (External):
+  - Browser WebSocket: telemetry, advice, status
+  - HTTP MJPEG: video streams (/video, /video/<cam_id>)
+  - Speaker: audio (TTS, alerts)
+  - Serial MAVLink: commands back to drone
+  - RC PWM: joystick override signals
+```
+
+### 1.4 Service Dependencies & Versions
+
+| Component | Type | Version | Purpose |
+|-----------|------|---------|---------|
+| `fastapi` | Framework | ^0.104 | HTTP/WebSocket server |
+| `uvicorn` | ASGI Server | ^0.24 | Server runtime |
+| `pymavlink` | Library | ^2.4 | MAVLink protocol |
+| `opencv-python` | Library | ^4.8 | Image processing, camera capture |
+| `ultralytics` | Library | ^8.0 | YOLOv8 inference |
+| `pygame` | Library | ^2.2 | Joystick polling |
+| `asyncio` | Stdlib | built-in | Async runtime |
+| `httpx` | Library | ^0.25 | Async HTTP client (Ollama) |
+| `faster-whisper` | Library | ^0.10 | Speech-to-text |
+| `openwakeword` | Library | ^0.5 | Wake word detection |
+| `edge-tts` | Library | ^6.0 | Microsoft TTS (online) |
+| `ollama` | Service | ^0.1 | Local LLM (external process) |
 
 ---
 
-## 🎯 Service Overview
+## 2. NODE SPECIFICATIONS
 
-### What Is DetectionService?
+### 2.1 MavlinkNode
 
-A **non-blocking, queue-based object detection service** for multi-camera vision systems. The service receives raw video frames from camera clients, runs YOLO inference asynchronously, and returns annotated frames with detection bounding boxes.
+**Class:** `hardware/mavlink_node.py :: MavlinkNode`
+
+**Responsibility:** Serial communication with PX4 flight controller
+
+**Interface:**
+```python
+class MavlinkNode:
+    def __init__(self, com_port: str, baud_rate: int, ws_manager)
+    async def connect() → None
+    async def run() → None
+    async def send_command_long(target_system, command, params) → bool
+    async def send_command_int(target_system, command, params) → bool
+    def get_telemetry_snapshot() → dict
+    def ingest_message(msg_dict) → None
+```
+
+**Message Types Streamed:**
+- `HEARTBEAT` (1, frequency 5 Hz)
+- `SYS_STATUS` (1, frequency 1 Hz)
+- `ATTITUDE` (30, frequency 30 Hz)
+- `GLOBAL_POSITION_INT` (33, frequency 1 Hz)
+- `GPS_RAW_INT` (24, frequency 1 Hz)
+- `BATTERY_STATUS` (147, frequency 1 Hz)
+- `VFR_HUD` (74, frequency 5 Hz)
+- `STATUSTEXT` (253, frequency 0.5 Hz)
+- (20+ more types, rate-limited per config)
+
+**Telemetry Snapshot Keys:**
+```json
+{
+  "armed": bool,
+  "system_status": int,
+  "mode": str,
+  "battery_percent": float,
+  "battery_voltage": float,
+  "gps_fix": int,
+  "satellites": int,
+  "altitude": float,
+  "lat": float,
+  "lon": float,
+  "velocity": float,
+  "roll": float,
+  "pitch": float,
+  "yaw": float,
+  "connected": bool
+}
+```
+
+**Error Handling:**
+- Connection lost: auto-reconnect every 5s
+- Malformed message: log + continue
+- Command timeout: return False
+
+---
+
+### 2.2 CameraNode
+
+**Class:** `vision/camera_node.py :: CameraNode`
+
+**Responsibility:** Multi-camera capture, frame composition, YOLO detection
+
+**Interface:**
+```python
+class CameraNode:
+    def __init__(self, camera_ids: list[int], layout: str, ai_node, ws_manager, detection_optimizer)
+    async def capture_loop(cam_id: int) → None
+    async def compositor_loop() → None
+    def toggle_detection(enable: bool, camera_id: int = None) → None
+    def get_camera_info() → dict
+    def set_camera_layout(layout: str) → None
+    def set_composite_resolution(width: int, height: int) → None
+```
+
+**Composite Layout Enum:**
+```python
+LAYOUTS = {
+    "single": "1 camera, full screen",
+    "side_by_side": "2 cameras, left-right",
+    "top_bottom": "2 cameras, top-bottom",
+    "three_left_main": "3 cameras: main left, 2 right stacked",
+    "three_right_main": "3 cameras: main right, 2 left stacked",
+    "three_top_main": "3 cameras: main top, 2 bottom stacked",
+    "grid_2x2": "4 cameras, 2x2 grid"
+}
+```
+
+**Frame Specification:**
+- Format: BGR uint8 (OpenCV standard)
+- Capture resolution: 640×480 per camera
+- Composite output: configurable (default 1280×720)
+- JPEG quality: 80% (tunable)
+- Target FPS: 30 (adaptive)
+
+**YOLO Detection Output:**
+```json
+[
+  {
+    "class_id": 0,
+    "class_name": "person",
+    "confidence": 0.95,
+    "bbox": [x1, y1, x2, y2],  // normalized 0-1
+    "camera_id": 0
+  }
+]
+```
+
+**HTTP Endpoints Generated:**
+- `GET /video` → Composite MJPEG stream
+- `GET /video/{cam_id}` → Per-camera MJPEG stream
+- `GET /api/camera/frame` → Composite JPEG snapshot
+- `GET /api/camera/frame/{cam_id}` → Per-camera JPEG snapshot
+
+---
+
+### 2.3 JoystickNode
+
+**Class:** `hardware/joystick_node.py :: JoystickNode`
+
+**Responsibility:** USB gamepad polling and RC override mapping
+
+**Interface:**
+```python
+class JoystickNode:
+    def __init__(self, joystick_id: int, ws_manager, mavlink_node)
+    async def poll_loop() → None
+```
+
+**Input Mapping:**
+```
+AXES (RC Channels):
+  0 (Roll)    → PWM 1000-2000  (left/right tilt)
+  1 (Pitch)   → PWM 1000-2000  (forward/backward tilt)
+  2 (Throttle)→ PWM 1000-2000  (climb/descend)
+  3 (Yaw)     → PWM 1000-2000  (turn left/right)
+
+BUTTONS:
+  0: arm/disarm toggle
+  1: manual mode
+  2: altitude hold
+  3: position hold
+  4: mission mode
+  5: return to launch
+  6: mode up
+  7: mode down
+  8: camera layout up
+  9: camera layout down
+  10: detection toggle
+  11: AI advisor on/off
+  12: emergency land
+  13: custom (unused)
+```
+
+**Parameters:**
+- Poll rate: 50 Hz (20ms)
+- Deadzone: 0.05 (5% of axis range)
+- Debounce: 0.2 s (button)
+- Invert axes: configurable per axis
+
+---
+
+### 2.4 AINode
+
+**Class:** `ai/ai_node.py :: AINode`
+
+**Responsibility:** Rolling telemetry analysis + Ollama LLM inference
+
+**Interface:**
+```python
+class AINode:
+    def __init__(self, mavlink_node, camera_node, ws_manager)
+    async def advisor_loop() → None
+    def ingest_telemetry(data: dict) → None
+    def ingest_detections(detections: list[dict]) → None
+    async def ask_question(question: str) → dict
+```
+
+**Telemetry Window:**
+- Type: `collections.deque(maxlen=30)`
+- Update frequency: every MAVLink message (~10-50 Hz)
+- Retention: ~3 seconds of history
+
+**LLM Query Contract:**
+```json
+{
+  "model": "mistral:instruct | phi3:mini",
+  "prompt": "...telemetry snapshot + detections + user question...",
+  "stream": false,
+  "temperature": 0.2,
+  "num_predict": 120,
+  "top_p": 0.95
+}
+```
+
+**LLM Response Schema (enforced):**
+```json
+{
+  "priority": 1-10,
+  "advice": "string (max 20 words)",
+  "detail": "string (optional explanation)",
+  "alert": true|false
+}
+```
+
+**Advice Loop:**
+- Interval: 10 seconds (configurable)
+- Triggers: telemetry window change, detection changes
+- Output: broadcast to all WebSocket clients
+- Fallback: if Ollama unreachable, advice={priority:1, advice:"LLM offline"}
+
+**Priority Scale:**
+- 1-3: Informational (no speech)
+- 4-6: Advisory (low-priority speech queue)
+- 7-9: Warning (medium-priority speech queue)
+- 10: Critical (pre-empt all speech, popup alert)
+
+---
+
+### 2.5 VoiceCommander
+
+**Class:** `ai/voice_commander.py :: VoiceCommander`
+
+**Responsibility:** Offline voice command pipeline
+
+**Pipeline Stages:**
+
+```
+Stage 1: Wake Word Detection
+  Input: Microphone audio (16 kHz mono, 80 ms chunks via sounddevice)
+  Model: OpenWakeWord (CPU-optimized)
+  Output: Confidence score
+  Threshold: 0.5
+  Latency: ~50 ms
+
+Stage 2: Speech-to-Text (triggered on wake word)
+  Input: Audio stream (5 seconds max)
+  Model: faster-whisper small.en (int8 quantized)
+  Output: Text transcript
+  Latency: ~1-2s (CPU), ~0.3s (GPU)
+
+Stage 3: Intent Classification
+  Input: Transcript text
+  Model: Ollama (temperature 0.1)
+  Output: JSON intent object
+  Latency: ~1s (CPU)
+
+Stage 4: Safety Gate
+  Checks:
+    - GPS fix ≥ 3D
+    - Battery > 20%
+    - Drone connected
+    - Autopilot mode enabled
+  Action: block or proceed
+
+Stage 5: Execution + Confirmation
+  High-risk intents (arm, takeoff, goto):
+    → ask "Confirm: <action>. Say yes."
+    → wait for verbal confirmation
+    → execute
+  Low-risk intents (land, rtl, disarm, hold):
+    → execute immediately
+```
+
+**Intent Schema:**
+```json
+{
+  "intent": "arm|disarm|takeoff|land|goto|rtl|hold|unknown",
+  "params": {
+    "altitude": float_meters,
+    "lat": float,
+    "lon": float,
+    "direction": "north|south|east|west",
+    "duration": float_seconds
+  },
+  "confidence": 0.0-1.0,
+  "requires_confirm": true|false
+}
+```
+
+**Supported Intents:**
+```
+arm                 → MAV_CMD_COMPONENT_ARM_DISARM (400, param1=1)
+disarm              → MAV_CMD_COMPONENT_ARM_DISARM (400, param1=0)
+takeoff <altitude>  → MAV_CMD_NAV_TAKEOFF (22, param7=altitude)
+land                → MAV_CMD_NAV_LAND (21)
+goto <lat> <lon>    → MAV_CMD_DO_REPOSITION (102, lat, lon)
+rtl                 → MAV_CMD_NAV_RETURN_TO_LAUNCH (20)
+hold                → MAV_CMD_DO_LOITER_UNLIMITED (17)
+unknown             → no-op (audio response only)
+```
+
+---
+
+### 2.6 AIAudioNode
+
+**Class:** `ai/audio_node.py :: AIAudioNode`
+
+**Responsibility:** Text-to-speech synthesis and audio queue management
+
+**TTS Priority Chain:**
+
+```
+1. Edge Browser (client-side)
+   - Trigger: user in Microsoft Edge
+   - Voices: Aria Online, Jenny Online, Guy Online
+   - Latency: ~0.5s
+   - No server round-trip
+
+2. edge-tts (server-side, requires internet)
+   - Trigger: client not in Edge OR offline fallback unavailable
+   - Voices: same Microsoft neural voices
+   - Format: MP3 base64 over WebSocket
+   - Latency: ~1-2s
+   - Requires: active internet
+
+3. Kokoro-82M ONNX (server-side, fully offline)
+   - Trigger: edge-tts fails OR offline mode
+   - Voices: 5 multilingual voices (en-US, etc.)
+   - Format: WAV base64 over WebSocket
+   - Latency: ~0.3-0.5s
+   - Requires: ONNX model files (300 MB)
+```
+
+**Speech Queue Specification:**
+```python
+class UnifiedAudioQueue:
+    max_size = 100  # configurable
+    messages: list[SpeechMessage]
+    
+    SpeechMessage = {
+        "text": str,
+        "priority": 1-10,
+        "source": "battery|statustext|ai_advice|voice_confirm|custom",
+        "loop": bool,  # repeat until cleared
+        "timestamp": float
+    }
+```
+
+**Queue Behavior:**
+- Sorted by priority (higher = first)
+- Deduplicated by (text + source) within 5s window
+- Looping messages: repeat until state changes
+- Dropped if: queue full AND priority < 5
+
+**WebSocket Message Contract:**
+```json
+{
+  "class": "tts_audio",
+  "text": "string",
+  "loop": false,
+  "audio": "base64 encoded MP3 or WAV"
+}
+```
+
+---
+
+### 2.7 ConnectionManager
+
+**Class:** `server/socket_manager.py :: ConnectionManager`
+
+**Responsibility:** WebSocket connection pooling and message routing
+
+**Interface:**
+```python
+class ConnectionManager:
+    async def connect(websocket: WebSocket) → None
+    def disconnect(websocket: WebSocket) → None
+    async def broadcast(message: dict) → None
+    async def handle_incoming_command(...) → None
+```
+
+**Broadcasting Strategy:**
+- Concurrent `asyncio.gather()` with 1s timeout per client
+- Dead connections auto-removed
+- Zero-copy snapshots during iteration
+- Throughput: 1000+ msgs/sec sustained
+
+**Incoming Command Routing:**
+
+| Command Key | Handler | Response |
+|---|---|---|
+| `toggle_detection` | CameraNode.toggle_detection() | `camera_detection_update` |
+| `set_camera_layout` | CameraNode.set_camera_layout() | broadcast `camera_frame_available` |
+| `set_camera_slot_order` | CameraNode.reorder_cameras() | broadcast `camera_frame_available` |
+| `ask_ai` | AINode.ask_question() | `ai_advice` |
+| `tts_request` | AIAudioNode.synthesize() | `tts_audio` |
+| `COMMAND_LONG` | MavlinkNode.send_command_long() | MAVLink ACK → `mavlink_ack` |
+| `COMMAND_INT` | MavlinkNode.send_command_int() | MAVLink ACK → `mavlink_ack` |
+| `request_camera_info` | CameraNode.get_camera_info() | `camera_info` |
+| `request_message` | MavlinkNode query | MAVLink message |
+
+**Outgoing Message Broadcast:**
+
+| Message Class | Trigger | Frequency | Keys |
+|---|---|---|---|
+| `mavlink_*` | Message received | ~10-50 Hz | (MAVLink message fields) |
+| `camera_frame_available` | Compositor ready | ~30 Hz | urls, active_cameras, frame_count |
+| `ai_advice` | Advice interval | ~0.1 Hz | priority, advice, detail, alert |
+| `voice_transcript` | STT complete | on-demand | text, confidence |
+| `voice_command_executed` | Intent executed | on-demand | intent, params, status |
+| `tts_audio` | TTS ready | on-demand | text, audio (base64) |
+| `camera_detection_update` | Detection toggled | on-demand | camera_id, detection_enabled |
+
+---
+
+### 2.8 FastAPI Application
+
+**File:** `server/web_app.py`
+
+**Initialization:**
+```python
+app = FastAPI(
+    title="Drone Station",
+    version="2.0.0",
+    lifespan=lifespan_context
+)
+```
+
+**Endpoints:**
+
+| Method | Path | Content-Type | Purpose |
+|--------|------|--------------|---------|
+| GET | `/` | text/html | Serve index.html (SPA) |
+| WebSocket | `/ws` | application/json | Real-time bidirectional |
+| GET | `/video` | video/x-motion-jpeg | Composite MJPEG stream |
+| GET | `/video/{cam_id}` | video/x-motion-jpeg | Per-camera MJPEG |
+| GET | `/api/camera/frame` | image/jpeg | Composite JPEG snapshot |
+| GET | `/api/camera/frame/{cam_id}` | image/jpeg | Per-camera JPEG |
+| GET | `/api/camera/info` | application/json | Camera config |
+| GET | `/api/mavlink/status` | application/json | MAVLink connection status |
+| GET | `/api/health` | application/json | Server health |
+| GET | `/{path}` | (auto-detect) | SPA fallback |
+
+---
+
+## 3. DATA TYPES & SCHEMAS
+
+### 3.1 Configuration
+
+**File:** `config/settings.py`
+
+```python
+@dataclass
+class AppConfig:
+    # Hardware
+    com_port: str = "COM3"
+    baud_rate: int = 115200
+    joystick_id: int = 0
+    
+    # Camera
+    camera_ids: list[int] = field(default_factory=lambda: [0])
+    camera_enabled: bool = True
+    camera_layout: str = "side_by_side"
+    layout_main_ratio: float = 0.65
+    composite_width: int = 1280
+    composite_height: int = 720
+    
+    # Detection
+    yolo_model_path: str = "models/yolov8n.pt"
+    yolo_detection_enabled: bool = False
+    
+    # AI
+    ai_advisor_enabled: bool = True
+    voice_commands_enabled: bool = True
+    wake_word_enabled: bool = True
+    
+    # Server
+    websocket_port: int = 8765
+    
+    # UI
+    ui_theme: str = "dark"
+    background_color: str = "#1a1a1a"
+```
+
+### 3.2 MAVLink Command Contract
+
+```python
+# Send to drone
+{
+    "class": "COMMAND_LONG | COMMAND_INT",
+    "message": {
+        "target_system": 1,
+        "target_component": 0,
+        "command": int,  # MAV_CMD_*
+        "confirmation": 0,
+        "param1": float, ... "param7": float,
+        "frame": 0|1|3|10  # MAV_FRAME enum
+    }
+}
+
+# Response from drone
+{
+    "class": "COMMAND_ACK",
+    "result": 0|1|2|3,  # 0=accepted, 1=temp reject, 2=denied, 3=unsupported
+    "command": int
+}
+```
+
+---
+
+## 4. STATE MACHINES
+
+### 4.1 Drone Connection State
+
+```
+DISCONNECTED
+    ↓ (connection attempt)
+CONNECTING
+    ├─→ (timeout) → DISCONNECTED
+    └─→ (heartbeat received) → CONNECTED
+            ↓ (heartbeat lost 5s)
+        HEARTBEAT_LOST
+            ↓ (auto-reconnect)
+        CONNECTING
+```
+
+### 4.2 Voice Command State
+
+```
+IDLE
+    ↓ (wake word detected)
+LISTENING
+    ├─→ (timeout 5s) → IDLE
+    └─→ (silence detected) → PROCESSING
+            ↓
+        STT_RUNNING
+            ├─→ (error) → IDLE
+            └─→ (transcript ready) → INTENT_CLASSIFICATION
+                    ↓
+                SAFETY_GATE_CHECK
+                    ├─→ (fail) → speak error → IDLE
+                    └─→ (pass) → maybe CONFIRMATION_WAIT
+                            ↓
+                        EXECUTING
+                            ├─→ (success) → speak confirm → IDLE
+                            └─→ (error) → speak error → IDLE
+```
+
+### 4.3 Detection State
+
+```
+DISABLED
+    ↓ (toggle_detection(True))
+LOADING
+    ├─→ (timeout 10s) → DISABLED
+    └─→ (model loaded) → ENABLED
+            ↓ (toggle_detection(False))
+        DISABLED
+```
+
+---
+
+## 5. ERROR CODES & RECOVERY
+
+### 5.1 MAVLink Errors
+
+| Code | Meaning | Recovery |
+|------|---------|----------|
+| 0 | MAV_RESULT_ACCEPTED | Success, continue |
+| 1 | MAV_RESULT_TEMPORARILY_REJECTED | Retry in 2s |
+| 2 | MAV_RESULT_DENIED | User intervention required |
+| 3 | MAV_RESULT_UNSUPPORTED | Fallback command or skip |
+
+### 5.2 Camera Errors
+
+| Error | Cause | Recovery |
+|-------|-------|----------|
+| Camera not found | USB disconnected | Warn user, auto-disable camera |
+| Frame capture timeout | Slow device | Skip frame, continue |
+| YOLO load failed | Model corrupt | Disable detection, log error |
+| Compositor overflow | Too many frames | Increase skip ratio |
+
+### 5.3 Ollama Errors
+
+| Error | Cause | Recovery |
+|-------|-------|----------|
+| Connection refused | Service not running | Retry every 10s, queue advice |
+| Timeout | Slow inference | Use fallback empty advice |
+| Model not found | Model not pulled | Log error, fall back to phi3:mini |
+| Out of memory | Model too large | Reduce context window, log warning |
+
+---
+
+## 6. PERFORMANCE TARGETS
+
+| Metric | Target | Acceptable | Degraded |
+|--------|--------|-----------|----------|
+| Frame capture latency | <50ms | <100ms | <500ms |
+| Composite rendering | <50ms | <100ms | <200ms |
+| YOLO inference (1 frame) | <1s (GPU) <5s (CPU) | <2s (GPU) <10s (CPU) | >10s |
+| MAVLink telemetry latency | <100ms | <500ms | >1s |
+| Advice loop latency | <2s | <5s | >10s |
+| Voice command latency | <3s | <5s | >10s |
+| WebSocket broadcast | <100ms | <500ms | >1s |
+
+---
+
+## 7. DEPLOYMENT & INITIALIZATION
+
+### 7.1 Startup Sequence
+
+```
+1. Parse CLI args / load config (default: config/settings.py)
+2. Launch GUI (PySimpleGUI) for hardware selection
+3. Initialize hardware nodes (async context)
+   a. MavlinkNode (connect, start telemetry loop)
+   b. CameraNode (probe cameras, start capture + compositor)
+   c. JoystickNode (probe gamepads, start poll loop)
+   d. AINode (init Ollama connection, start advisor loop)
+   e. VoiceCommander (load models: wake word, STT, intent)
+   f. AIAudioNode (load TTS model if offline mode)
+4. Start FastAPI server (Uvicorn, port 8765)
+5. Emit "ready" event to browser clients
+```
+
+### 7.2 Shutdown Sequence
+
+```
+1. Set shutdown flag
+2. Cancel all async tasks
+3. Gracefully disconnect all WebSocket clients
+4. Close serial ports
+5. Release camera handles
+6. Unload YOLO model
+7. Exit
+```
+
+---
+
+## 8. EXTENSION POINTS
+
+Designed for extensibility:
+
+1. **New Hardware:** Subclass `Node` base class, implement async `run()` method
+2. **New Inference Model:** Replace YOLO in `DetectionOptimizer`, same interface
+3. **New LLM Provider:** Replace Ollama calls in `AINode`, same response schema
+4. **New TTS Engine:** Add to priority chain in `AIAudioNode`
+5. **Custom WebSocket Commands:** Register in `ConnectionManager.handle_incoming_command()`
 
 ### Key Characteristics
 
