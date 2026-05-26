@@ -241,6 +241,7 @@ class CameraNode:
         self.frame_count: int = 0
 
         # ── Detection Settings ─────────────────────────────────────────────
+        self._detection_tasks = []
         self.detection_enabled = detection_enabled
         self.detection_confidence = detection_confidence
         self.per_camera_detection: Dict[int, bool] = {cid: False for cid in self._camera_ids}
@@ -352,6 +353,74 @@ class CameraNode:
                 logger.info(f"Detection toggled: {enable} (camera {camera_id})")
             else:
                 logger.warning(f"Camera {camera_id} not in active list")
+
+    async def toggle_detection(self, enable: bool, camera_id: int = None):
+        """
+        Enable/disable detection globally or per-camera.
+        Loads YOLO model lazily the first time detection is enabled.
+        """
+        if camera_id is None:
+            # Global toggle
+            if enable and not self.detection_enabled:
+                # Load model if not already loaded
+                if self.detection_optimizer.model is None:
+                    logger.info("Lazy loading YOLO model because detection was enabled...")
+                    loaded = await self.detection_optimizer.load_model()
+                    if not loaded:
+                        logger.error("Failed to load YOLO model – detection will remain disabled")
+                        return
+                await self._start_detection_worker()   # <-- ADD THIS LINE
+                self.detection_enabled = True
+                for cid in self._camera_ids:
+                    self.per_camera_detection[cid] = True
+                logger.info("Detection enabled globally")
+            elif not enable:
+                self.detection_enabled = False
+                for cid in self._camera_ids:
+                    self.per_camera_detection[cid] = False
+                logger.info("Detection disabled globally")
+            else:
+                # Already enabled, nothing to do
+                pass
+        else:
+            # Per-camera toggle
+            if camera_id not in self._camera_ids:
+                logger.warning(f"Camera {camera_id} not in active list")
+                return
+            if enable:
+                # Ensure model is loaded before enabling per-camera detection
+                if self.detection_optimizer.model is None:
+                    logger.info("Lazy loading YOLO model for per-camera detection...")
+                    loaded = await self.detection_optimizer.load_model()
+                    if not loaded:
+                        logger.error("Failed to load YOLO model – detection will remain disabled")
+                        return
+                await self._start_detection_worker()   # <-- ADD THIS LINE   
+                self.per_camera_detection[camera_id] = True
+                # If global flag was False, set it True (at least one camera wants detection)
+                if not self.detection_enabled:
+                    self.detection_enabled = True
+                logger.info(f"Detection enabled for camera {camera_id}")
+            else:
+                self.per_camera_detection[camera_id] = False
+                # If no camera left with detection, keep global flag as is (user can still re-enable)
+                logger.info(f"Detection disabled for camera {camera_id}")
+
+
+    async def _start_detection_worker(self):
+        """Start detection worker and telemetry tasks if not already running."""
+        if hasattr(self, "_detection_tasks") and self._detection_tasks:
+            return  # already started
+        self._detection_tasks = []
+        logger.info("Spawning detection worker (lazy)...")
+        self._detection_tasks.append(
+            asyncio.create_task(self.detection_optimizer.detection_worker_loop(), name="Detection-Worker")
+        )
+        if self.ws_manager:
+            self._detection_tasks.append(
+                asyncio.create_task(self.detection_optimizer.broadcast_telemetry(self.ws_manager), name="Detection-Telemetry")
+            )
+
 
     def load_model(self):
         """Legacy method for backward compatibility."""

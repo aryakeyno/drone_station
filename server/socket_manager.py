@@ -101,7 +101,7 @@ class ConnectionManager:
             try:
                 if camera_id is not None:
                     # Per-camera detection
-                    camera_node.toggle_detection(enable, camera_id=camera_id)
+                    await camera_node.toggle_detection(enable, camera_id=camera_id)
                     # Send detection state update so client can update menu
                     await websocket.send_json({ 
                         "class": "camera_detection_update", 
@@ -111,7 +111,7 @@ class ConnectionManager:
                     })
                 else:
                     # Global detection (all cameras)
-                    camera_node.toggle_detection(enable)
+                    await camera_node.toggle_detection(enable)
                     # Send detection state update so client can update menu
                     await websocket.send_json({ 
                         "class": "camera_detection_update", 
